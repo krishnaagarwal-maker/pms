@@ -1,0 +1,12 @@
+{
+    "name": "ProjectManagement",
+    "version": "1.0.0",
+    "enabled": false,
+    "last_enabled_at": null,
+    "last_disabled_at": null,
+    "applied_migrations": [],
+    "failed_migrations": [],
+    "dependencies": [],
+    "dependents": [],
+    "config": []
+}

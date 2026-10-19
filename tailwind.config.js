@@ -1,0 +1,107 @@
+import defaultTheme from 'tailwindcss/defaultTheme';
+import forms from '@tailwindcss/forms';
+
+/** @type {import('tailwindcss').Config} */
+export default {
+    darkMode: 'class',
+
+    content: [
+        './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
+        './storage/framework/views/*.php',
+        './resources/views/**/*.blade.php',
+        './resources/js/**/*.js',
+        // IMPORTANT: your project view lives in a module, so scan it too
+        './Modules/**/resources/views/**/*.blade.php',
+        './Modules/**/resources/assets/**/*.js',
+    ],
+
+    theme: {
+        extend: {
+            colors: {
+                'surface-bright': '#f7f9fb',
+                'inverse-on-surface': '#eff1f3',
+                'tertiary-container': '#006e4b',
+                'primary-fixed': '#e2dfff',
+                'outline-variant': '#c7c4d8',
+                'error': '#ba1a1a',
+                'surface': '#f7f9fb',
+                'error-container': '#ffdad6',
+                'on-secondary-container': '#004666',
+                'on-tertiary-fixed': '#002113',
+                'surface-container-lowest': '#ffffff',
+                'primary-container': '#4f46e5',
+                'outline': '#777587',
+                'on-primary-fixed': '#0f0069',
+                'surface-container-high': '#e6e8ea',
+                'secondary-fixed': '#c9e6ff',
+                'on-primary-container': '#dad7ff',
+                'tertiary': '#005338',
+                'secondary-container': '#39b8fd',
+                'primary': '#3525cd',
+                'on-surface-variant': '#464555',
+                'primary-fixed-dim': '#c3c0ff',
+                'on-primary-fixed-variant': '#3323cc',
+                'surface-container-low': '#f2f4f6',
+                'on-secondary-fixed-variant': '#004c6e',
+                'on-secondary-fixed': '#001e2f',
+                'on-error-container': '#93000a',
+                'inverse-surface': '#2d3133',
+                'on-secondary': '#ffffff',
+                'surface-tint': '#4d44e3',
+                'on-background': '#191c1e',
+                'surface-variant': '#e0e3e5',
+                'tertiary-fixed': '#6ffbbe',
+                'on-surface': '#191c1e',
+                'on-tertiary-fixed-variant': '#005236',
+                'tertiary-fixed-dim': '#4edea3',
+                'on-tertiary-container': '#67f4b7',
+                'secondary': '#006591',
+                'background': '#f7f9fb',
+                'on-primary': '#ffffff',
+                'surface-dim': '#d8dadc',
+                'surface-container-highest': '#e0e3e5',
+                'inverse-primary': '#c3c0ff',
+                'surface-container': '#eceef0',
+                'on-tertiary': '#ffffff',
+                'secondary-fixed-dim': '#89ceff',
+                'on-error': '#ffffff',
+            },
+
+            spacing: {
+                'margin-mobile': '1rem',
+                'space-md': '1rem',
+                'space-xs': '0.25rem',
+                'margin': '2rem',
+                'space-sm': '0.5rem',
+                'gutter-mobile': '1rem',
+                'space-lg': '1.5rem',
+                'space-xl': '2rem',
+                'gutter': '1.5rem',
+            },
+
+            fontFamily: {
+                inter: ['Inter', ...defaultTheme.fontFamily.sans],
+                'code-sm': ['JetBrains Mono', ...defaultTheme.fontFamily.mono],
+            },
+
+            fontSize: {
+                'body-sm': ['12px', { lineHeight: '16px', fontWeight: '400' }],
+                'label-md': ['13px', { lineHeight: '18px', fontWeight: '500' }],
+                'headline-xl': ['36px', { lineHeight: '44px', letterSpacing: '-0.025em', fontWeight: '700' }],
+                'label-sm': ['11px', { lineHeight: '14px', letterSpacing: '0.02em', fontWeight: '500' }],
+                'code-sm': ['12px', { lineHeight: '16px', fontWeight: '400' }],
+                'body-md': ['14px', { lineHeight: '20px', fontWeight: '400' }],
+                'title-md': ['16px', { lineHeight: '24px', letterSpacing: '-0.005em', fontWeight: '600' }],
+                'title-sm': ['14px', { lineHeight: '20px', fontWeight: '600' }],
+                'headline-lg-mobile': ['24px', { lineHeight: '32px', letterSpacing: '-0.015em', fontWeight: '600' }],
+                'body-lg': ['16px', { lineHeight: '24px', fontWeight: '400' }],
+                'headline-lg': ['30px', { lineHeight: '38px', letterSpacing: '-0.02em', fontWeight: '600' }],
+                'headline-xl-mobile': ['28px', { lineHeight: '36px', letterSpacing: '-0.02em', fontWeight: '700' }],
+                'headline-md': ['24px', { lineHeight: '32px', letterSpacing: '-0.015em', fontWeight: '600' }],
+                'headline-sm': ['20px', { lineHeight: '28px', letterSpacing: '-0.01em', fontWeight: '600' }],
+            },
+        },
+    },
+
+    plugins: [forms],
+};

@@ -1,0 +1,42 @@
+[90m= [39m[34;4mIlluminate\Support\Collection[39;24m {#8336
+    [34mall[39m: [
+      [
+        [34m"[39m[34mrole[39m[34m"[39m => [32m"[39m[32mmanager[39m[32m"[39m,
+        [34m"[39m[34mpermissions[39m[34m"[39m => [34;4mIlluminate\Support\Collection[39;24m {#8422
+          [34mall[39m: [
+            [32m"[39m[32mprojects.view[39m[32m"[39m,
+            [32m"[39m[32mprojects.create[39m[32m"[39m,
+            [32m"[39m[32mprojects.edit[39m[32m"[39m,
+            [32m"[39m[32mprojects.delete[39m[32m"[39m,
+            [32m"[39m[32mtasks.view[39m[32m"[39m,
+            [32m"[39m[32mtasks.create[39m[32m"[39m,
+            [32m"[39m[32mtasks.edit[39m[32m"[39m,
+            [32m"[39m[32mtasks.delete[39m[32m"[39m,
+            [32m"[39m[32mtasks.assign[39m[32m"[39m,
+            [32m"[39m[32mtasks.update-status[39m[32m"[39m,
+            [32m"[39m[32mroles.view[39m[32m"[39m,
+            [32m"[39m[32mroles.create[39m[32m"[39m,
+            [32m"[39m[32mroles.edit[39m[32m"[39m,
+            [32m"[39m[32mroles.delete[39m[32m"[39m,
+            [32m"[39m[32mroles.assign-permissions[39m[32m"[39m,
+          ],
+        },
+      ],
+      [
+        [34m"[39m[34mrole[39m[34m"[39m => [32m"[39m[32mteam_member[39m[32m"[39m,
+        [34m"[39m[34mpermissions[39m[34m"[39m => [34;4mIlluminate\Support\Collection[39;24m {#8418
+          [34mall[39m: [],
+        },
+      ],
+      [
+        [34m"[39m[34mrole[39m[34m"[39m => [32m"[39m[32mTeam Member[39m[32m"[39m,
+        [34m"[39m[34mpermissions[39m[34m"[39m => [34;4mIlluminate\Support\Collection[39;24m {#8335
+          [34mall[39m: [
+            [32m"[39m[32mprojects.view[39m[32m"[39m,
+            [32m"[39m[32mtasks.view[39m[32m"[39m,
+            [32m"[39m[32mtasks.update-status[39m[32m"[39m,
+          ],
+        },
+      ],
+    ],
+  }
