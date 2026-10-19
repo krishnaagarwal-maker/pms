@@ -38,7 +38,11 @@
                                     {{ $role->name }}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-600">
-                                    {{ $role->permissions->count() }}
+                                <div>{{ $role->permissions->count() }} permissions</div>
+
+                                <div class="mt-1 text-xs text-gray-500">
+                                    {{ $role->permissions->pluck('name')->implode(', ') ?: 'No permissions assigned' }}
+                                </div>
                                 </td>
                                 <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-600">
                                     {{ $role->users_count }}
@@ -51,7 +55,7 @@
                                         </a>
                                     @endcan
                                     @can('roles.delete')
-                                        @if (! in_array($role->name, ['Manager', 'Team Member'], true) && $role->users_count === 0)
+                                        @if (! in_array($role->name, ['Manager', 'team_member'], true) && $role->users_count === 0)
                                             <form action="{{ route('projects.roles.destroy', $role) }}"
                                                   method="POST"
                                                   class="inline ms-3"

@@ -328,7 +328,7 @@
                             <div class="mb-space-sm flex items-center justify-between border-b border-surface-container-low pb-space-sm">
                                 <div class="flex items-center gap-space-xs">
                                     <span class="material-symbols-outlined text-[20px] text-primary" aria-hidden="true">preview</span>
-                                    <h3 class="text-title-md text-on-surface">Live Preview</h3>
+                                    <h3 class="text-title-md text-on-surface">Preview</h3>
                                 </div>
                                 <span class="rounded-full bg-surface-container-high px-2 py-0.5 font-code-sm text-[10px] uppercase tracking-wider text-on-surface-variant">Draft</span>
                             </div>

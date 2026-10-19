@@ -16,7 +16,22 @@ class RoleSeeder extends Seeder
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        Role::firstOrCreate(['name' => 'manager']);
-        Role::firstOrCreate(['name' => 'team_member']);
+        Role::whereIn('name', [
+            'manager',
+            'team_member',
+            'Manager',
+            'Team Member',
+            'team-member',
+            'Team member',
+            'project_manager',
+            'team_lead',
+            'Project Manager',
+            'Team Lead',
+        ])->delete();
+
+        Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'team_member', 'guard_name' => 'web']);
+
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
     }
 }

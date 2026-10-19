@@ -13,7 +13,7 @@ class RoleController extends Controller
 {
     private function protectedRoles(): array
 {
-    return ['Manager', 'Team Member'];
+    return ['manager', 'team_member'];
 }
 
     private function permissionGroups(): array
@@ -56,11 +56,14 @@ class RoleController extends Controller
     public function create()
     {
         $permissionGroups = $this->permissionGroups();
+        $assignablePermissions = request()->user()
+        ->getAllPermissions()
+        ->where('guard_name', 'web')
+        ->pluck('name')
+        ->all();
 
         return view(
-            'ProjectManagement::roles.create',
-            compact('permissionGroups')
-        );
+            'ProjectManagement::roles.create', compact('permissionGroups','assignablePermissions'));
     }
 
     public function store(Request $request)
@@ -70,6 +73,11 @@ class RoleController extends Controller
             403,
             'You are not allowed to assign permissions.'
         );
+        $assignablePermissions = $request->user()
+        ->getAllPermissions()
+        ->where('guard_name', 'web')
+        ->pluck('name')
+        ->all();
         $validated = $request->validate([
             'name' => [
                 'required',
@@ -83,7 +91,7 @@ class RoleController extends Controller
                 'required',
                 'string',
                 'distinct',
-                Rule::in(Permission::where('guard_name', 'web')->pluck('name')->all()),
+                Rule::in($assignablePermissions),
             ],
         ]);
 
@@ -105,10 +113,15 @@ class RoleController extends Controller
     {
         $permissionGroups = $this->permissionGroups();
         $selectedPermissions = $role->permissions->pluck('name')->all();
+        $assignablePermissions = request()->user()
+        ->getAllPermissions()
+        ->where('guard_name', 'web')
+        ->pluck('name')
+        ->all();
 
         return view(
             'ProjectManagement::roles.edit',
-            compact('role', 'permissionGroups', 'selectedPermissions')
+            compact('role', 'permissionGroups', 'selectedPermissions','assignablePermissions')
         );
     }
 
@@ -121,6 +134,11 @@ class RoleController extends Controller
                 'You are not allowed to assign permissions.'
             );
         }
+        $assignablePermissions = $request->user()
+        ->getAllPermissions()
+        ->where('guard_name', 'web')
+        ->pluck('name')
+        ->all();
         $validated = $request->validate([
             'name' => [
                 'required',
@@ -136,7 +154,7 @@ class RoleController extends Controller
                 'required',
                 'string',
                 'distinct',
-                Rule::in(Permission::where('guard_name', 'web')->pluck('name')->all()),
+                Rule::in($assignablePermissions),
             ],
         ]);
 
@@ -150,7 +168,9 @@ class RoleController extends Controller
         }
 
         $role->update(['name' => $validated['name'] ?? $role->name]);
-        $role->syncPermissions($validated['permissions'] ?? []);
+        if (array_key_exists('permissions', $validated)) {
+            $role->syncPermissions($validated['permissions']);
+        }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 

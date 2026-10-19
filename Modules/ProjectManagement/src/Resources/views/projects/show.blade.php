@@ -159,7 +159,7 @@
                             <span class="absolute text-title-sm font-bold tabular-nums text-on-surface">{{ $progress }}%</span>
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-label-sm uppercase tracking-wider text-on-surface-variant">Pace Health</span>
+                            <span class="text-label-sm uppercase tracking-wider text-on-surface-variant"></span>
                             <span class="flex items-center gap-0.5 text-title-sm {{ $health['class'] }}">
                                 <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ $health['icon'] }}</span>
                                 {{ $health['label'] }}

@@ -5,6 +5,8 @@ use Modules\ProjectManagement\Http\Controllers\HomeController;
 use Modules\ProjectManagement\Http\Controllers\ProjectController;
 use Modules\ProjectManagement\Http\Controllers\RoleController;
 use Modules\ProjectManagement\Http\Controllers\TaskController;
+use Modules\ProjectManagement\Http\Controllers\DashboardController;
+use Modules\ProjectManagement\Http\Controllers\UserRoleController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,7 +22,9 @@ use Modules\ProjectManagement\Http\Controllers\TaskController;
 Route::prefix('projectmanagement')->name('projectmanagement.')->group(function () {
     Route::get('/', [HomeController::class, 'index'])->name('home');
 });
-
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware(['web', 'auth'])
     ->prefix('projects')
@@ -45,6 +49,10 @@ Route::middleware(['web', 'auth'])
         Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])->middleware('permission:roles.edit')->name('roles.edit');
         Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('permission:roles.edit')->name('roles.update');
         Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:roles.delete')->name('roles.destroy');
+
+        Route::get('/users/roles', [UserRoleController::class, 'index'])->middleware('auth')->name('users.roles.index');
+        Route::post('/users/roles', [UserRoleController::class, 'assign'])->middleware('auth')->name('users.roles.assign');
+
         Route::get('/{project}/tasks/create', [TaskController::class, 'create'])->middleware('permission:tasks.create')->name('tasks.create');
         Route::post('/{project}/tasks', [TaskController::class, 'store'])->middleware('permission:tasks.create')->name('tasks.store');
         Route::get('/{project}/tasks/{task}', [TaskController::class, 'show'])->middleware('permission:tasks.view')->name('tasks.show');

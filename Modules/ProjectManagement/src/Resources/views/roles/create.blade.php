@@ -18,6 +18,7 @@
 
                 @include('ProjectManagement::roles._permission-fields', [
                     'permissionGroups' => $permissionGroups,
+                    'assignablePermissions' => $assignablePermissions,
                 ])
 
                 <x-input-error class="mt-2" :messages="$errors->get('permissions')" />

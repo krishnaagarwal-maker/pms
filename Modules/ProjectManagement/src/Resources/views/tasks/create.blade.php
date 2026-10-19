@@ -2,26 +2,31 @@
 
 {{--
 |--------------------------------------------------------------------------
-| RBAC NOTES (dynamic roles & permissions — not wired up yet)
+| RBAC NOTES (dynamic roles & permissions — partly wired up)
 |--------------------------------------------------------------------------
 | Planned: default roles "manager" and "team member", plus custom roles
-| with custom permissions. Everything role/permission/assignee related is
-| COMMENTED OUT below so this page works without any RBAC tables/policies.
+| with custom permissions.
 |
-| When RBAC exists, enable these (search for the RBAC-… markers):
-|   1. RBAC-ASSIGNEE  : assignee + role + effective-permission section
-|   2. RBAC-PREVIEW   : assignee avatar in the live preview tile
-|   3. RBAC-INSPECTOR : role summary card in the sidebar
-|   4. RBAC-CREATE    : wrap the Create Task buttons in
+| ASSIGNEE: ACTIVE. Renders only when the user has the 'tasks.assign'
+| permission AND the controller passes $users. Nothing breaks if either
+| is missing; the section just doesn't show.
+|
+| ROLES / PERMISSIONS: COMMENTED OUT below (search for RBAC-ROLES) because
+| they need roles/permissions tables that don't exist yet.
+|
+| When RBAC exists:
+|   1. RBAC-ROLES     : enable the role + effective-permission section
+|   2. RBAC-INSPECTOR : role summary card in the sidebar
+|   3. RBAC-CREATE    : wrap the Create Task buttons in
 |                       @can('create', [App\Models\Task::class, $project])
 |      (an undefined ability returns false, so do NOT add @can before the
 |      permission/policy exists, or the buttons will disappear)
-|   5. Controller create(): pass
-|        'assignableUsers' => $project->members (or User::orderBy('name')->get()),
-|        'roles'          => Role::with('permissions')->get(),
-|        'permissions'    => Permission::where('scope', 'task')->get()
-|   6. Controller store():  $this->authorize('create', [Task::class, $project]);
-|        'assignee_id' => ['nullable', 'exists:users,id'],
+|   4. Controller create(): pass
+|        'users'       => $project->members (or User::orderBy('name')->get()),
+|        'roles'       => Role::with('permissions')->get(),
+|        'permissions' => Permission::where('scope', 'task')->get()
+|   5. Controller store():  $this->authorize('create', [Task::class, $project]);
+|        'assigned_to' => ['nullable', 'exists:users,id'],
 |        'role_id'     => ['nullable', 'exists:roles,id'],
 |        'permissions' => ['nullable', 'array'],
 |        'permissions.*' => ['exists:permissions,id'],
@@ -37,6 +42,9 @@
              priority: @js(old('priority', 'medium')),
              status: @js(old('status', 'pending')),
              description: @js(old('description', '')),
+             assignedTo: @js((string) old('assigned_to', '')),
+             users: @js(($users ?? collect())->mapWithKeys(fn ($u) => [(string) $u->id => ['name' => $u->name, 'email' => $u->email]])),
+
              priorityActive: {
                  low:    'bg-surface-container-lowest text-on-surface shadow-sm',
                  medium: 'bg-secondary-fixed text-on-secondary-fixed shadow-sm',
@@ -48,19 +56,37 @@
                  high:   { pill: 'bg-error-container text-on-error-container',        dot: 'bg-error' }
              },
              statusPill: {
-                 pending:     { label: 'To Do',       pill: 'bg-surface-container text-on-surface-variant',  dot: 'bg-outline' },
-                 in_progress: { label: 'In Progress', pill: 'bg-secondary-fixed text-on-secondary-fixed',    dot: 'bg-secondary' },
-                 completed:   { label: 'Done',        pill: 'bg-tertiary-fixed text-on-tertiary-fixed',      dot: 'bg-tertiary' }
+                 pending:     { label: 'To Do',       pill: 'bg-surface-container text-on-surface-variant', dot: 'bg-outline' },
+                 in_progress: { label: 'In Progress', pill: 'bg-secondary-fixed text-on-secondary-fixed',   dot: 'bg-secondary' },
+                 completed:   { label: 'Done',        pill: 'bg-tertiary-fixed text-on-tertiary-fixed',     dot: 'bg-tertiary' }
              },
+
              iso(d) { return d.toLocaleDateString('en-CA'); },
              setDue(offsetDays) {
                  const d = new Date();
                  d.setDate(d.getDate() + offsetDays);
                  this.due = this.iso(d);
              },
+             today() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; },
              get dueLabel() {
-                 if (!this.due) return 'No due date';
-                 return new Date(this.due + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                 return this.due
+                     ? new Date(this.due + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                     : 'No due date';
+             },
+             get daysLeft() {
+                 if (!this.due) return null;
+                 return Math.round((new Date(this.due + 'T00:00:00') - this.today()) / 86400000);
+             },
+             get dueNote() {
+                 const d = this.daysLeft;
+                 if (d === null || this.status === 'completed') return null;
+                 if (d < 0) return 'Overdue by ' + Math.abs(d) + (Math.abs(d) === 1 ? ' day' : ' days');
+                 if (d === 0) return 'Due today';
+                 return d + (d === 1 ? ' day left' : ' days left');
+             },
+             assignee() { return this.users[this.assignedTo] || null; },
+             initials(name) {
+                 return (name || '').split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
              }
          }">
 
@@ -74,29 +100,31 @@
             <div class="mb-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
                 <div class="flex min-w-0 flex-col gap-space-xs">
                     <nav class="flex flex-wrap items-center gap-2 text-label-md text-on-surface-variant" aria-label="Breadcrumb">
-                        <a href="{{ route('projects.index') }}" class="transition-colors hover:text-primary">Projects</a>
+                        <a href="{{ route('projects.index') }}" class="flex items-center gap-1 transition-colors hover:text-primary">
+                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">folder_open</span>
+                            Projects
+                        </a>
                         <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
                         <a href="{{ route('projects.show', $project) }}" class="max-w-[14rem] truncate transition-colors hover:text-primary">{{ $project->name }}</a>
                         <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
                         <span class="text-title-sm text-on-surface">Create Task</span>
                     </nav>
 
-                    <div class="mt-1 flex flex-wrap items-center gap-space-sm">
-                        <h1 class="text-headline-lg tracking-tight text-on-surface">Create Task</h1>
-                        <span class="inline-flex max-w-xs items-center gap-1.5 truncate rounded-full bg-surface-container-high px-2.5 py-0.5 font-code-sm text-[11px] text-on-surface-variant">
-                            <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary-container" aria-hidden="true"></span>
-                            <span class="truncate">PRJ-{{ str_pad($project->id, 3, '0', STR_PAD_LEFT) }} · {{ $project->name }}</span>
+                    <h1 class="mt-1 text-headline-lg tracking-tight text-on-surface">Create Task</h1>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-surface-container-high px-2.5 py-0.5 font-code-sm text-[11px] text-on-surface-variant">
+                            <span class="h-1.5 w-1.5 rounded-full bg-primary-container" aria-hidden="true"></span>
+                            PRJ-{{ str_pad($project->id, 3, '0', STR_PAD_LEFT) }} · {{ Str::limit($project->name, 32) }}
                         </span>
                     </div>
                 </div>
 
                 <div class="flex shrink-0 items-center gap-space-sm">
                     <a href="{{ route('projects.show', $project) }}"
-                       class="flex items-center gap-1.5 rounded-xl bg-surface-container-lowest px-space-md py-2 text-label-md text-on-surface shadow-sm transition-all hover:bg-surface-container-low">
-                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
+                       class="rounded-xl bg-surface-container-lowest px-space-md py-2 text-label-md text-on-surface shadow-sm transition-all hover:bg-surface-container-low">
                         Cancel
                     </a>
-
                     {{-- RBAC-CREATE: wrap in @can(...) … @endcan once policies exist --}}
                     <button type="submit" form="task-form"
                             class="flex items-center gap-2 rounded-xl bg-primary-container px-space-lg py-2 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
@@ -110,11 +138,12 @@
             <div class="grid grid-cols-1 items-start gap-gutter lg:grid-cols-12">
 
                 {{-- LEFT: form --}}
-                <form id="task-form" x-ref="form" action="{{ route('projects.tasks.store', $project) }}" method="POST"
+                <form id="task-form" x-ref="form"
+                      action="{{ route('projects.tasks.store', $project) }}" method="POST"
                       class="flex flex-col gap-space-lg lg:col-span-8">
                     @csrf
 
-                    {{-- SECTION 1: Task overview --}}
+                    {{-- Task overview --}}
                     <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
                         <div class="mb-space-md flex items-center justify-between">
                             <div class="flex items-center gap-space-xs">
@@ -147,7 +176,7 @@
                         {{-- Description --}}
                         <div>
                             <label for="description" class="mb-space-xs block text-label-md text-on-surface">Description &amp; Specifications</label>
-                            <textarea id="description" name="description" rows="6" x-model="description"
+                            <textarea id="description" name="description" rows="7" x-model="description"
                                       placeholder="Describe the goal, requirements, and acceptance criteria…"
                                       class="w-full resize-y rounded-xl border-0 bg-surface-container-lowest p-space-md text-body-md text-on-surface transition-shadow placeholder:text-outline focus:outline-none focus:ring-0
                                              {{ $errors->has('description') ? 'shadow-[0_0_0_2px_rgba(186,26,26,1)]' : 'shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]' }}"></textarea>
@@ -160,32 +189,36 @@
                         </div>
                     </div>
 
-                    {{-- SECTION 2: Planning & attributes --}}
+                    {{-- Planning & attributes --}}
                     <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
-                        <div class="mb-space-md flex items-center gap-space-xs">
-                            <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">tune</span>
-                            <h2 class="text-title-md text-on-surface">Planning &amp; Attributes</h2>
+                        <div class="mb-space-md flex items-center justify-between">
+                            <div class="flex items-center gap-space-xs">
+                                <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">tune</span>
+                                <h2 class="text-title-md text-on-surface">Planning &amp; Attributes</h2>
+                            </div>
+                            <span class="text-label-sm text-on-surface-variant">Core task metadata</span>
                         </div>
 
-                        <div class="grid grid-cols-1 gap-space-lg md:grid-cols-3">
+                        <div class="grid grid-cols-1 gap-space-lg md:grid-cols-2">
 
                             {{-- Due date --}}
                             <div>
                                 <div class="mb-space-xs flex items-center justify-between">
-                                    <label for="due_date" class="text-label-md text-on-surface">Due Date</label>
+                                    <label for="due_date" class="flex items-center gap-1 text-label-md text-on-surface">
+                                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">event</span>
+                                        Target Due Date
+                                    </label>
                                     @if ($project->start_date || $project->end_date)
                                         <span class="font-code-sm text-[10px] text-secondary">
                                             Project: {{ $project->start_date?->format('d M') ?? '…' }} – {{ $project->end_date?->format('d M') ?? '…' }}
                                         </span>
                                     @endif
                                 </div>
-                                <div class="relative flex items-center">
-                                    <span class="material-symbols-outlined pointer-events-none absolute left-3 text-[18px] text-on-surface-variant" aria-hidden="true">calendar_today</span>
-                                    <input type="date" id="due_date" name="due_date" x-model="due"
-                                           class="w-full rounded-xl border-0 bg-surface-container-lowest py-2.5 pl-10 pr-3 text-body-md text-on-surface focus:outline-none focus:ring-0
-                                                  {{ $errors->has('due_date') ? 'shadow-[0_0_0_2px_rgba(186,26,26,1)]' : 'shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]' }}">
-                                </div>
-                                <div class="mt-space-xs flex flex-wrap gap-1.5">
+                                <input type="date" id="due_date" name="due_date" x-model="due"
+                                       class="w-full rounded-xl border-0 bg-surface-container-lowest px-space-md py-2.5 text-body-md text-on-surface focus:outline-none focus:ring-0
+                                              {{ $errors->has('due_date') ? 'shadow-[0_0_0_2px_rgba(186,26,26,1)]' : 'shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]' }}">
+
+                                <div class="mt-space-xs flex flex-wrap items-center gap-1.5">
                                     <button type="button" @click="setDue(0)"
                                             class="rounded-full bg-surface-container px-2.5 py-0.5 text-label-sm text-on-surface-variant transition-colors hover:bg-surface-container-high">Today</button>
                                     <button type="button" @click="setDue(7)"
@@ -194,6 +227,14 @@
                                         <button type="button" @click="due = @js($project->end_date->format('Y-m-d'))"
                                                 class="rounded-full bg-primary-fixed px-2.5 py-0.5 text-label-sm text-on-primary-fixed-variant transition-colors hover:bg-primary-fixed-dim">Project End</button>
                                     @endif
+                                    <button type="button" x-show="due" @click="due = ''" style="display: none;"
+                                            class="rounded-full px-2.5 py-0.5 text-label-sm text-on-surface-variant transition-colors hover:bg-surface-container">Clear</button>
+                                    <span x-show="dueNote" style="display: none;"
+                                          :class="daysLeft < 0 ? 'text-error' : (daysLeft <= 2 ? 'text-amber-700' : 'text-on-surface-variant')"
+                                          class="ml-auto flex items-center gap-1 text-label-sm font-medium">
+                                        <span class="material-symbols-outlined text-[14px]" aria-hidden="true">alarm</span>
+                                        <span x-text="dueNote"></span>
+                                    </span>
                                 </div>
                                 @error('due_date')
                                     <p class="mt-1.5 flex items-center gap-1 text-body-sm text-error">
@@ -204,100 +245,156 @@
                             </div>
 
                             {{-- Priority --}}
-                            <div>
-                                <span class="mb-space-xs block text-label-md text-on-surface">Priority <span class="text-error">*</span></span>
+                            <fieldset>
+                                <legend class="mb-space-xs flex items-center gap-1 text-label-md text-on-surface">
+                                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">flag</span>
+                                    Priority Level <span class="text-error">*</span>
+                                </legend>
                                 <div class="flex gap-1 rounded-xl bg-surface-container-low p-1">
-                                    @foreach ([['low', 'Low'], ['medium', 'Medium'], ['high', 'High']] as [$v, $l])
+                                    @foreach (['low' => 'Low', 'medium' => 'Medium', 'high' => 'High'] as $value => $label)
                                         <label class="flex-1 cursor-pointer">
-                                            <input type="radio" name="priority" value="{{ $v }}" x-model="priority" class="peer sr-only" required>
-                                            <span :class="priority === @js($v) ? priorityActive[@js($v)] : 'text-on-surface-variant hover:text-on-surface'"
-                                                  class="block rounded-lg py-1.5 text-center text-label-md transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container">
-                                                {{ $l }}
+                                            <input type="radio" name="priority" value="{{ $value }}" x-model="priority" required class="peer sr-only">
+                                            <span :class="priority === @js($value) ? priorityActive[@js($value)] : 'text-on-surface-variant hover:text-on-surface'"
+                                                  class="flex items-center justify-center gap-1.5 rounded-lg py-2 text-label-md transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container">
+                                                <span class="h-1.5 w-1.5 rounded-full" :class="priorityPill[@js($value)].dot"></span>
+                                                {{ $label }}
                                             </span>
                                         </label>
                                     @endforeach
                                 </div>
-                                <p class="mt-space-xs text-body-sm text-on-surface-variant">Affects triage order on the board.</p>
                                 @error('priority')
                                     <p class="mt-1.5 flex items-center gap-1 text-body-sm text-error">
                                         <span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>
                                         {{ $message }}
                                     </p>
                                 @enderror
-                            </div>
+                            </fieldset>
+                        </div>
 
-                            {{-- Status --}}
-                            <div>
-                                <span class="mb-space-xs block text-label-md text-on-surface">Status <span class="text-error">*</span></span>
-                                <div class="flex gap-1 rounded-xl bg-surface-container-low p-1">
-                                    @foreach ([['pending', 'To Do'], ['in_progress', 'In Progress'], ['completed', 'Done']] as [$v, $l])
-                                        <label class="flex-1 cursor-pointer">
-                                            <input type="radio" name="status" value="{{ $v }}" x-model="status" class="peer sr-only" required>
-                                            <span :class="status === @js($v) ? 'bg-surface-container-lowest text-on-surface shadow-sm' : 'text-on-surface-variant hover:text-on-surface'"
-                                                  class="block rounded-lg px-1 py-1.5 text-center text-label-md leading-tight transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container">
-                                                {{ $l }}
-                                            </span>
-                                        </label>
-                                    @endforeach
+                        {{-- Status --}}
+                        <fieldset class="mt-space-lg">
+                            <legend class="mb-space-xs flex items-center gap-1 text-label-md text-on-surface">
+                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">hourglass_empty</span>
+                                Starting Status <span class="text-error">*</span>
+                            </legend>
+                            <div class="grid grid-cols-1 gap-1 rounded-xl bg-surface-container-low p-1 sm:grid-cols-3">
+                                @foreach ([
+                                    ['pending',     'To Do',       'radio_button_unchecked'],
+                                    ['in_progress', 'In Progress', 'timelapse'],
+                                    ['completed',   'Done',        'check_circle'],
+                                ] as [$value, $label, $icon])
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="status" value="{{ $value }}" x-model="status" required class="peer sr-only">
+                                        <span :class="status === @js($value)
+                                                    ? (@js($value) === 'in_progress' ? 'bg-secondary-fixed text-on-secondary-fixed shadow-sm'
+                                                       : (@js($value) === 'completed' ? 'bg-tertiary-fixed text-on-tertiary-fixed shadow-sm'
+                                                       : 'bg-surface-container-lowest text-on-surface shadow-sm'))
+                                                    : 'text-on-surface-variant hover:text-on-surface'"
+                                              class="flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-label-md transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container">
+                                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $icon }}</span>
+                                            {{ $label }}
+                                        </span>
+                                    </label>
+                                @endforeach
+                            </div>
+                            <p class="mt-space-xs text-body-sm text-on-surface-variant">Which board column the task starts in.</p>
+                            @error('status')
+                                <p class="mt-1.5 flex items-center gap-1 text-body-sm text-error">
+                                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </fieldset>
+                    </div>
+
+                    {{-- Assignment: needs the 'tasks.assign' permission and $users from the controller --}}
+                    @can('tasks.assign')
+                        @isset($users)
+                            <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+                                <div class="mb-space-md flex items-center gap-space-xs">
+                                    <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">person_add</span>
+                                    <div>
+                                        <h2 class="text-title-md text-on-surface">Assignment</h2>
+                                        <p class="text-body-sm text-on-surface-variant">Who is responsible for this task.</p>
+                                    </div>
                                 </div>
-                                <p class="mt-space-xs text-body-sm text-on-surface-variant">Which column it starts in.</p>
-                                @error('status')
+
+                                <label for="assigned_to" class="mb-space-xs block text-label-md text-on-surface">Primary Assignee</label>
+                                <div class="relative">
+                                    <select name="assigned_to" id="assigned_to" x-model="assignedTo"
+                                            class="w-full appearance-none rounded-xl border-0 bg-surface-container-lowest py-2.5 pl-space-md pr-10 text-body-md text-on-surface focus:outline-none focus:ring-0
+                                                   {{ $errors->has('assigned_to') ? 'shadow-[0_0_0_2px_rgba(186,26,26,1)]' : 'shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]' }}">
+                                        <option value="">Unassigned</option>
+                                        @foreach ($users as $user)
+                                            <option value="{{ $user->id }}" @selected(old('assigned_to') == $user->id)>
+                                                {{ $user->name }} ({{ $user->email }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <span class="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant" aria-hidden="true">expand_more</span>
+                                </div>
+                                @error('assigned_to')
                                     <p class="mt-1.5 flex items-center gap-1 text-body-sm text-error">
                                         <span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>
                                         {{ $message }}
                                     </p>
                                 @enderror
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- {{--
+                                <div class="mt-space-md rounded-xl bg-surface-container-low p-space-md">
+                                    <div x-show="assignee()" class="flex items-center gap-3">
+                                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-fixed text-label-md font-bold text-on-primary-fixed"
+                                              x-text="initials(assignee()?.name)"></span>
+                                        <div class="min-w-0">
+                                            <p class="truncate text-title-sm text-on-surface" x-text="assignee()?.name"></p>
+                                            <p class="truncate text-body-sm text-on-surface-variant" x-text="assignee()?.email"></p>
+                                        </div>
+                                    </div>
+                                    <p x-show="!assignee()" style="display: none;" class="text-body-md text-on-surface-variant">Unassigned</p>
+                                </div>
+                            </div>
+                        @endisset
+                    @endcan
+
+                    {{--
                     |----------------------------------------------------------------------
-                    | RBAC-ASSIGNEE: Assignee & Role-Based Governance (COMMENTED OUT)
+                    | RBAC-ROLES: Role & effective permissions (COMMENTED OUT)
                     |----------------------------------------------------------------------
-                    | Needs: $assignableUsers, $roles (with permissions), $permissions,
-                    | and nullable assignee_id / role_id columns (+ task_permission pivot
-                    | if per-task overrides are saved). Default roles: manager and
-                    | team member; admins can add custom roles with custom permissions.
+                    | Needs $roles (with permissions), $permissions, nullable role_id on
+                    | tasks, and a task_permission pivot if per-task overrides are saved.
+                    | Default roles: manager, team member. Admins can add custom roles.
                     |
                     | To enable: remove the Blade comment markers around this block.
                     |
                     | @can('tasks.assign')
                     | <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm"
                     |      x-data="{
-                    |          role: @js(old('role_id', '')),
-                    |          rolePermissions: @js($roles->mapWithKeys(fn ($r) => [$r->id => $r->permissions->pluck('id')])),
+                    |          role: @js((string) old('role_id', '')),
+                    |          rolePermissions: @js($roles->mapWithKeys(fn ($r) => [(string) $r->id => $r->permissions->pluck('id')])),
                     |          selected: @js(old('permissions', [])),
-                    |          pickRole(id) { this.role = id; this.selected = [...(this.rolePermissions[id] ?? [])]; }
+                    |          pickRole(id) { this.role = String(id); this.selected = [...(this.rolePermissions[id] ?? [])]; }
                     |      }">
-                    |     <div class="mb-space-md flex items-center gap-space-xs">
-                    |         <span class="material-symbols-outlined text-[22px] text-primary">verified_user</span>
-                    |         <h2 class="text-title-md text-on-surface">Assignee & Role-Based Governance</h2>
-                    |     </div>
-                    |
-                    |     <label for="assignee_id" class="mb-space-xs block text-label-md text-on-surface">Primary Assignee</label>
-                    |     <select id="assignee_id" name="assignee_id"
-                    |             class="mb-space-md w-full rounded-xl border-0 bg-surface-container-lowest py-2.5 pl-3 pr-8 text-body-md text-on-surface shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:outline-none focus:ring-0 focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]">
-                    |         <option value="">Unassigned</option>
-                    |         @foreach ($assignableUsers as $user)
-                    |             <option value="{{ $user->id }}" @selected(old('assignee_id') == $user->id)>{{ $user->name }}</option>
-                    |         @endforeach
-                    |     </select>
-                    |
-                    |     <div class="mb-space-xs flex items-center justify-between">
-                    |         <span class="text-label-md text-on-surface">Assigned Task Scope Role</span>
+                    |     <div class="mb-space-md flex items-center justify-between">
+                    |         <div class="flex items-center gap-space-xs">
+                    |             <span class="material-symbols-outlined text-[22px] text-primary">verified_user</span>
+                    |             <h2 class="text-title-md text-on-surface">Role & Governance</h2>
+                    |         </div>
                     |         @can('roles.manage')
                     |             <a href="{{ route('roles.create') }}" class="text-label-sm text-primary hover:underline">+ Create custom role</a>
                     |         @endcan
                     |     </div>
+                    |
+                    |     <span class="mb-space-xs block text-label-md text-on-surface">Assigned Task Scope Role</span>
                     |     <div class="mb-space-md grid grid-cols-1 gap-space-sm md:grid-cols-3">
                     |         @foreach ($roles as $role)
                     |             <label class="cursor-pointer">
-                    |                 <input type="radio" name="role_id" value="{{ $role->id }}" class="peer sr-only" @click="pickRole({{ $role->id }})" @checked(old('role_id') == $role->id)>
+                    |                 <input type="radio" name="role_id" value="{{ $role->id }}" class="peer sr-only"
+                    |                        @click="pickRole({{ $role->id }})" @checked(old('role_id') == $role->id)>
                     |                 <span class="block rounded-xl bg-surface-container-low p-space-md transition-all peer-checked:bg-primary-fixed/50 peer-checked:shadow-[0_0_0_2px_rgba(79,70,229,1)]">
-                    |                     <span class="block text-title-sm text-on-surface">{{ $role->name }}</span>
-                    |                     <span class="block text-body-sm text-on-surface-variant">{{ $role->description }}</span>
-                    |                     <span class="mt-1 block text-label-sm text-on-surface-variant">{{ $role->permissions->count() }} of {{ $permissions->count() }} permissions</span>
+                    |                     <span class="flex items-center justify-between">
+                    |                         <span class="text-title-sm text-on-surface">{{ $role->name }}</span>
+                    |                         <span class="font-code-sm text-[10px] text-primary">{{ $role->permissions->count() }}/{{ $permissions->count() }} perms</span>
+                    |                     </span>
+                    |                     <span class="mt-1 block text-body-sm text-on-surface-variant">{{ $role->description }}</span>
                     |                 </span>
                     |             </label>
                     |         @endforeach
@@ -307,10 +404,7 @@
                     |     <div class="grid grid-cols-1 gap-space-sm md:grid-cols-2">
                     |         @foreach ($permissions as $permission)
                     |             <label class="flex items-center justify-between gap-3 rounded-xl bg-surface-container-low p-space-sm">
-                    |                 <span>
-                    |                     <span class="block text-title-sm text-on-surface">{{ $permission->label }}</span>
-                    |                     <span class="block text-body-sm text-on-surface-variant">{{ $permission->description }}</span>
-                    |                 </span>
+                    |                 <span class="text-title-sm text-on-surface">{{ $permission->label }}</span>
                     |                 <input type="checkbox" name="permissions[]" value="{{ $permission->id }}"
                     |                        :checked="selected.includes({{ $permission->id }})"
                     |                        class="h-4 w-4 rounded border-outline-variant text-primary-container focus:ring-primary-container/30">
@@ -318,99 +412,39 @@
                     |         @endforeach
                     |     </div>
                     |
-                    |     @error('assignee_id') <p class="mt-1.5 text-body-sm text-error">{{ $message }}</p> @enderror
-                    |     @error('role_id')     <p class="mt-1.5 text-body-sm text-error">{{ $message }}</p> @enderror
+                    |     @error('role_id') <p class="mt-1.5 text-body-sm text-error">{{ $message }}</p> @enderror
                     | </div>
                     | @endcan
-                    --}} -->
-                    @can('tasks.assign')
-<div class="rounded-xl bg-white p-6 shadow-sm border border-gray-200"
-     x-data="{
-         selected: @js(old('permissions', []))
-     }">
-    <div class="mb-4 flex items-center gap-2">
-        <span class="text-xl text-indigo-600">🛡️</span>
-        <h2 class="text-lg font-semibold text-gray-900">Assignee & Task Governance</h2>
-    </div>
-
-    <!-- Primary Assignee Select -->
-    <div class="mb-4">
-        <label for="assigned_to" class="mb-2 block text-sm font-medium text-gray-700">Primary Assignee</label>
-        <select id="assigned_to" name="assigned_to"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-            <option value="">Unassigned</option>
-            @foreach ($users as $user)
-                <option value="{{ $user->id }}" @selected(old('assigned_to', $task->assigned_to ?? '') == $user->id)>
-                    {{ $user->name }} ({{ $user->email }})
-                </option>
-            @endforeach
-        </select>
-        @error('assigned_to') 
-            <p class="mt-1 text-sm text-red-600">{{ $message }}</p> 
-        @enderror
-    </div>
-
-    <!-- Static Task Scope Role Display (Since global Spatie roles are handled via routes) -->
-    <div class="mb-2 flex items-center justify-between">
-        <span class="text-sm font-medium text-gray-700">Assigned Task Scope Role</span>
-    </div>
-    
-    <div class="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
-            <span class="block font-semibold text-indigo-900 text-sm">Standard Assignment Scope</span>
-            <span class="block text-xs text-indigo-700 mt-0.5">
-                Task visibility and access privileges are controlled automatically by global system routing safeguards.
-            </span>
-        </div>
-    </div>
-</div>
-@endcan
-
-
-                    {{-- Bottom actions --}}
-                    <div class="flex items-center justify-between gap-space-md pt-space-xs">
-                        <a href="{{ route('projects.show', $project) }}"
-                           class="flex items-center gap-1.5 text-label-md text-on-surface-variant transition-colors hover:text-on-surface">
-                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
-                            Discard and back to project
-                        </a>
-
-                        {{-- RBAC-CREATE: wrap in @can(...) … @endcan once policies exist --}}
-                        <button type="submit"
-                                class="flex h-11 items-center gap-2 rounded-xl bg-primary-container px-space-lg text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
-                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_task</span>
-                            Create Task
-                        </button>
-                    </div>
+                    --}}
                 </form>
 
                 {{-- RIGHT: live preview --}}
-                <aside class="flex flex-col gap-space-lg lg:col-span-4">
+                <aside class="flex flex-col gap-space-lg lg:sticky lg:top-6 lg:col-span-4">
+
                     <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
                         <div class="mb-space-md flex items-center justify-between">
                             <div class="flex items-center gap-space-xs">
                                 <span class="material-symbols-outlined text-[20px] text-primary" aria-hidden="true">view_kanban</span>
-                                <h3 class="text-title-md text-on-surface">Live Preview</h3>
+                                <h3 class="text-title-md text-on-surface">Preview</h3>
                             </div>
-                            <span class="flex items-center gap-1 text-label-sm text-tertiary">
-                             
+                           
                         </div>
 
                         <div class="rounded-xl bg-surface-container-lowest p-space-md shadow-[0_0_0_1px_rgba(226,232,240,1),0_1px_2px_rgba(15,23,42,0.04)]">
                             <div class="mb-space-sm flex items-center justify-between gap-2">
                                 <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-label-sm"
-                                      :class="statusPill[status].pill">
-                                    <span class="h-1.5 w-1.5 rounded-full" :class="statusPill[status].dot" aria-hidden="true"></span>
-                                    <span x-text="statusPill[status].label"></span>
+                                      :class="statusPill[status]?.pill">
+                                    <span class="h-1.5 w-1.5 rounded-full" :class="statusPill[status]?.dot" aria-hidden="true"></span>
+                                    <span x-text="statusPill[status]?.label"></span>
                                 </span>
                                 <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-label-sm capitalize"
-                                      :class="priorityPill[priority].pill">
-                                    <span class="h-1.5 w-1.5 rounded-full" :class="priorityPill[priority].dot" aria-hidden="true"></span>
+                                      :class="priorityPill[priority]?.pill">
+                                    <span class="material-symbols-outlined text-[12px]" aria-hidden="true"></span>
                                     <span x-text="priority"></span>
                                 </span>
                             </div>
 
-                            <h4 class="mb-space-sm text-title-sm text-on-surface" x-text="title.trim() || 'Untitled task'">Untitled task</h4>
+                            <h4 class="mb-space-sm break-words text-title-sm text-on-surface" x-text="title.trim() || 'Untitled task'">Untitled task</h4>
 
                             <p class="mb-space-sm line-clamp-2 whitespace-pre-line text-body-sm text-on-surface-variant"
                                x-show="description.trim()" style="display: none;" x-text="description"></p>
@@ -422,22 +456,20 @@
                             </div>
 
                             <div class="flex items-center justify-between border-t border-surface-container-low pt-space-sm text-body-sm text-on-surface-variant">
-                                <span class="flex items-center gap-1">
+                                <span class="flex items-center gap-1"
+                                      :class="dueNote && daysLeft < 0 ? 'text-error font-medium' : ''">
                                     <span class="material-symbols-outlined text-[16px]" aria-hidden="true">calendar_today</span>
                                     <span x-text="dueLabel"></span>
                                 </span>
-
-                                {{--
-                                | RBAC-PREVIEW: assignee avatar (COMMENTED OUT)
-                                | Show the selected assignee's initial here once assignee_id is live.
-                                |
-                                | <span class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-fixed text-[11px] font-bold uppercase text-on-primary-fixed">?</span>
-                                --}}
+                                <span x-show="assignee()" style="display: none;"
+                                      class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-fixed text-[10px] font-bold text-on-primary-fixed"
+                                      :title="assignee()?.name"
+                                      x-text="initials(assignee()?.name)"></span>
                             </div>
                         </div>
 
-                        <p class="mt-space-sm text-body-sm text-on-surface-variant">
-                            The tile updates as you change the title, due date, priority, or status.
+                        <p class="mt-space-sm text-center text-body-sm text-on-surface-variant">
+                            Updates as you type. Nothing is saved until you click Create Task.
                         </p>
                     </div>
 
@@ -470,6 +502,27 @@
                         </p>
                     </div>
                 </aside>
+            </div>
+
+            {{-- Bottom action bar --}}
+            <div class="mt-space-lg flex flex-col items-center justify-between gap-space-sm rounded-xl bg-surface-container-lowest px-space-lg py-space-md shadow-sm sm:flex-row">
+                <a href="{{ route('projects.show', $project) }}"
+                   class="flex items-center gap-1.5 text-label-md text-on-surface-variant transition-colors hover:text-on-surface">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
+                    Discard and back to project
+                </a>
+                <div class="flex items-center gap-space-sm">
+                    <a href="{{ route('projects.show', $project) }}"
+                       class="rounded-xl bg-surface-container-low px-space-md py-2 text-label-md text-on-surface transition-all hover:bg-surface-container">
+                        Cancel
+                    </a>
+                    {{-- RBAC-CREATE: wrap in @can(...) … @endcan once policies exist --}}
+                    <button type="submit" form="task-form"
+                            class="flex items-center gap-2 rounded-xl bg-primary-container px-space-lg py-2 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_task</span>
+                        Create Task
+                    </button>
+                </div>
             </div>
         </div>
     </div>

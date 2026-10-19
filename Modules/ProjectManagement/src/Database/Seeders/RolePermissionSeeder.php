@@ -38,13 +38,26 @@ class RolePermissionSeeder extends Seeder
             ]);
         }
 
+        Role::whereIn('name', [
+            'manager',
+            'team_member',
+            'Manager',
+            'Team Member',
+            'team-member',
+            'Team member',
+            'project_manager',
+            'team_lead',
+            'Project Manager',
+            'Team Lead',
+        ])->delete();
+
         $manager = Role::firstOrCreate([
-            'name' => 'Manager',
+            'name' => 'manager',
             'guard_name' => 'web',
         ]);
 
         $teamMember = Role::firstOrCreate([
-            'name' => 'Team Member',
+            'name' => 'team_member',
             'guard_name' => 'web',
         ]);
 
