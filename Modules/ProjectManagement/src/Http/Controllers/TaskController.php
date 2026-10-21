@@ -3,10 +3,11 @@
 namespace Modules\ProjectManagement\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Modules\ProjectManagement\Models\Project; 
-use Modules\ProjectManagement\Models\Task; 
 use App\Models\User;
+use App\Notifications\TaskAssignedNotification;
+use Illuminate\Http\Request;
+use Modules\ProjectManagement\Models\Project;
+use Modules\ProjectManagement\Models\Task;
 
 class TaskController extends Controller
 {
@@ -64,7 +65,12 @@ class TaskController extends Controller
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
-        $project->tasks()->create($validated);
+        $task = $project->tasks()->create([
+            ...$validated,
+            'created_by' => $request->user()->id,
+        ]);
+
+        $this->sendAssignmentNotification($task, $request->user());
 
         return redirect()
             ->route('projects.index')
@@ -152,12 +158,34 @@ public function update(Request $request, Project $project, Task $task)
 
     $validated = $request->validate($rules);
 
+    $previousAssigneeId = $task->assigned_to;
     $task->update($validated);
+
+    if ((int) ($task->assigned_to ?? 0) > 0 && (int) $previousAssigneeId !== (int) $task->assigned_to) {
+        $this->sendAssignmentNotification($task, $user);
+    }
 
     return redirect()
         ->route('projects.tasks.show', [$project, $task])
         ->with('success', 'Task updated successfully.');
 }
+
+    private function sendAssignmentNotification(Task $task, User $assignedBy): void
+    {
+        $assigneeId = $task->assigned_to;
+
+        if (! $assigneeId) {
+            return;
+        }
+
+        $assignee = User::find($assigneeId);
+
+        if (! $assignee || ! $assignee->email) {
+            return;
+        }
+
+        $assignee->notify(new TaskAssignedNotification($task, $assignedBy));
+    }
 
     /**
      * Remove the specified resource from storage.

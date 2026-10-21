@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Notifications\TaskAssignedNotification;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\View;
 use Modules\ProjectManagement\Models\Project;
 use Spatie\Permission\Models\Permission;
@@ -120,5 +122,70 @@ class ProjectManagementViewsTest extends TestCase
             ->get(route('projects.tasks.show', [$project, $task]))
             ->assertOk()
             ->assertSeeText('Jane Assignee');
+    }
+
+    public function test_manager_assignment_sends_email_notification_to_assignee(): void
+    {
+        Notification::fake();
+
+        $manager = User::factory()->create();
+        $manager->givePermissionTo('tasks.edit');
+
+        $assignee = User::factory()->create(['name' => 'Assigned User']);
+
+        $project = Project::create([
+            'name' => 'Assignment notification project',
+            'description' => 'Task assignment email check',
+            'start_date' => now()->subDay(),
+            'end_date' => now()->addDays(10),
+        ]);
+
+        $task = $project->tasks()->create([
+            'title' => 'Send onboarding email',
+            'description' => 'New hired employee needs setup tasks.',
+            'due_date' => now()->addDays(3),
+            'priority' => 'medium',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($manager)
+            ->put(route('projects.tasks.update', [$project, $task]), [
+                'title' => 'Send onboarding email',
+                'description' => 'New hired employee needs setup tasks.',
+                'due_date' => now()->addDays(3)->format('Y-m-d'),
+                'priority' => 'medium',
+                'status' => 'pending',
+                'assigned_to' => $assignee->id,
+            ])
+            ->assertRedirect(route('projects.tasks.show', [$project, $task]));
+
+        Notification::assertSentTo($assignee, TaskAssignedNotification::class);
+    }
+
+    public function test_task_assignment_notification_uses_in_app_database_channel(): void
+    {
+        $manager = User::factory()->create();
+        $assignee = User::factory()->create(['name' => 'Assigned User']);
+
+        $project = Project::create([
+            'name' => 'In-app notification project',
+            'description' => 'Dashboard notification check',
+            'start_date' => now()->subDay(),
+            'end_date' => now()->addDays(10),
+        ]);
+
+        $task = $project->tasks()->create([
+            'title' => 'Review handoff checklist',
+            'description' => 'Need to check onboarding tasks.',
+            'due_date' => now()->addDays(2),
+            'priority' => 'high',
+            'status' => 'pending',
+            'assigned_to' => $assignee->id,
+        ]);
+
+        $notification = new TaskAssignedNotification($task, $manager);
+
+        $this->assertContains('database', $notification->via($assignee));
+        $this->assertSame('Task assigned: Review handoff checklist', $notification->toArray($assignee)['message']);
     }
 }

@@ -184,6 +184,64 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-3">
+                    <div x-data="{ open: false }" class="relative">
+                        <button type="button"
+                                @click="open = !open"
+                                class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 {{ $focus }}"
+                                aria-label="Notifications"
+                                aria-haspopup="true"
+                                :aria-expanded="open">
+                            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">notifications</span>
+                            @if(($notifications ?? collect())->whereNull('read_at')->count() > 0)
+                                <span class="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                                    {{ min(9, ($notifications ?? collect())->whereNull('read_at')->count()) }}
+                                </span>
+                            @endif
+                        </button>
+
+                        <div x-show="open"
+                             x-cloak
+                             @click.away="open = false"
+                             class="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl ring-1 ring-slate-200"
+                             x-transition:enter="transition ease-out duration-150"
+                             x-transition:enter-start="opacity-0 translate-y-1"
+                             x-transition:enter-end="opacity-100 translate-y-0"
+                             x-transition:leave="transition ease-in duration-100"
+                             x-transition:leave-start="opacity-100 translate-y-0"
+                             x-transition:leave-end="opacity-0 translate-y-1">
+                            <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
+                                <div class="text-sm font-semibold text-slate-800">Notifications</div>
+                                @if(($notifications ?? collect())->isNotEmpty())
+                                    <span class="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+                                        {{ ($notifications ?? collect())->whereNull('read_at')->count() }} unread
+                                    </span>
+                                @endif
+                            </div>
+
+                            <div class="max-h-80 overflow-y-auto">
+                                @forelse($notifications ?? collect() as $notification)
+                                    @php
+                                        $notificationData = $notification->data ?? [];
+                                        $notificationMessage = $notificationData['message'] ?? 'System update';
+                                        $notificationLink = $notificationData['link'] ?? null;
+                                    @endphp
+                                    <a href="{{ $notificationLink ?? route('dashboard') }}"
+                                       class="block border-b border-slate-100 px-4 py-3 transition hover:bg-slate-50 {{ is_null($notification->read_at) ? 'bg-indigo-50/40' : '' }}">
+                                        <div class="flex items-start gap-3">
+                                            <span class="mt-1 inline-flex h-2.5 w-2.5 rounded-full {{ is_null($notification->read_at) ? 'bg-indigo-500' : 'bg-slate-300' }}"></span>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="text-sm font-medium text-slate-800 line-clamp-2">{{ $notificationMessage }}</p>
+                                                <p class="mt-1 text-xs text-slate-500">{{ $notification->created_at?->diffForHumans() ?? 'just now' }}</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                @empty
+                                    <div class="px-4 py-5 text-sm text-slate-500">No notifications yet.</div>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-3 text-white shadow-lg shadow-indigo-500/10 xl:block">
                         <div class="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
                             <span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)]"></span>

@@ -39,7 +39,7 @@ class DashboardController extends Controller
         ->where('status', '!=', 'completed')
         ->count();
 
-        $upcomingTasks = (clone $tasksQuery)
+    $upcomingTasks = (clone $tasksQuery)
         ->whereNotNull('due_date')
         ->where('status', '!=', 'completed')
         ->orderBy('due_date')
@@ -47,13 +47,18 @@ class DashboardController extends Controller
         ->with('project')
         ->get();
 
+    $notifications = $user
+        ? $user->notifications()->latest()->limit(6)->get()
+        : collect();
+
     return view('dashboard', compact(
         'projectsCount',
         'totalTasks',
         'completedTasks',
         'pendingTasks',
         'overdueTasks',
-        'upcomingTasks'
+        'upcomingTasks',
+        'notifications'
     ));
 }
 }
