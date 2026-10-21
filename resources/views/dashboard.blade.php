@@ -326,7 +326,7 @@
             {{-- Focus + week outlook --}}
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
-                {{-- Start here --}}
+             
                 <section class="{{ $card }} overflow-hidden border-l-4 {{ $focusAccent }} lg:col-span-2" aria-labelledby="focus-heading">
                     <div class="p-6">
                         <h2 id="focus-heading" class="text-sm font-semibold text-slate-500">Start here</h2>
@@ -354,7 +354,7 @@
                                         @else
                                             <span class="{{ $chip }} bg-slate-100 text-slate-600">{{ $fLabel }}</span>
                                         @endif
-                                        <span class="{{ $chip }} {{ $fpPill }}"><span class="h-1.5 w-1.5 rounded-full {{ $fpDot }}"></span>{{ $fpText }} priority</span>
+                                        <span class="{{ $chip }} {{ $fpPill }}"><span class="h-1.5 w-1.5 rounded-full {{ $fpDot }}"></span>{{ $fpText }} </span>
                                         <span class="{{ $chip }} {{ $fsPill }}"><span class="h-1.5 w-1.5 rounded-full {{ $fsDot }}"></span>{{ $fsText }}</span>
                                     </div>
                                 </div>
@@ -511,7 +511,7 @@
                     </div>
                 </section>
 
-                {{-- Task priority balance (needs $priorityCounts) --}}
+              
                 @if ($priority)
                     <section class="{{ $card }} p-6" aria-labelledby="prio-heading">
                         <div class="mb-5 flex items-center justify-between">

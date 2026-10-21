@@ -16,21 +16,34 @@ class RoleSeeder extends Seeder
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        Role::whereIn('name', [
-            'manager',
-            'team_member',
-            'Manager',
-            'Team Member',
-            'team-member',
-            'Team member',
-            'project_manager',
-            'team_lead',
-            'Project Manager',
-            'Team Lead',
-        ])->delete();
+        $canonicalRoles = [
+            'manager' => ['manager', 'Manager'],
+            'team_member' => ['team_member', 'team-member', 'Team Member', 'Team member', 'Team Lead', 'team_lead'],
+        ];
 
-        Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
-        Role::firstOrCreate(['name' => 'team_member', 'guard_name' => 'web']);
+        foreach ($canonicalRoles as $canonicalName => $aliases) {
+            $canonicalRole = Role::firstOrCreate([
+                'name' => $canonicalName,
+                'guard_name' => 'web',
+            ]);
+
+            foreach ($aliases as $alias) {
+                if ($alias === $canonicalName) {
+                    continue;
+                }
+
+                $duplicate = Role::where('guard_name', 'web')->where('name', $alias)->first();
+                if (! $duplicate || $duplicate->id === $canonicalRole->id) {
+                    continue;
+                }
+
+                foreach ($duplicate->users as $user) {
+                    $user->syncRoles([$canonicalName]);
+                }
+
+                $duplicate->delete();
+            }
+        }
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
     }

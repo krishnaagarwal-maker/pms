@@ -81,8 +81,8 @@
      x-on:keydown.escape.window="palette = false; open = false"
      x-on:keydown.window="if (($event.ctrlKey || $event.metaKey) && $event.key.toLowerCase() === 'k') { $event.preventDefault(); openPalette() }"
      x-on:resize.window="if (window.innerWidth >= 768) open = false"
-     x-bind:class="scrolled ? 'shadow-md shadow-sky-900/10' : ''"
-     class="nav-motion sticky top-0 z-50 border-b border-sky-200 bg-sky-100/95 backdrop-blur transition-shadow"
+     x-bind:class="scrolled ? 'shadow-lg shadow-slate-900/10 ring-1 ring-white/40' : ''"
+     class="nav-motion sticky top-0 z-50 border-b border-white/30 bg-white/45 backdrop-blur-xl shadow-[0_8px_30px_rgba(15,23,42,0.08)] transition-all"
      aria-label="Primary">
 
     <a href="#main-content"
@@ -98,10 +98,9 @@
             {{-- Brand + desktop links --}}
             <div class="flex items-center gap-6 lg:gap-8">
                 <a href="{{ route('dashboard') }}" class="flex shrink-0 items-center gap-3 rounded-lg {{ $ring }}">
-                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15)] ring-1 ring-white/20">
                         <x-application-logo class="block h-5 w-auto fill-current text-white" />
                     </span>
-                
                 </a>
 
                 <div class="hidden h-16 items-center gap-1 md:flex">
@@ -111,8 +110,8 @@
                            @if ($active) aria-current="page" @endif
                            class="relative rounded-lg px-3 py-2 text-sm font-medium transition {{ $ring }}
                                   {{ $active
-                                      ? 'bg-white text-slate-900 shadow-sm after:absolute after:inset-x-3 after:-bottom-[14px] after:h-0.5 after:rounded-full after:bg-indigo-600'
-                                      : 'text-slate-600 hover:bg-white/70 hover:text-slate-900' }}">
+                                      ? 'bg-white/80 text-slate-900 shadow-sm ring-1 ring-slate-200/60 after:absolute after:inset-x-3 after:-bottom-[14px] after:h-0.5 after:rounded-full after:bg-slate-900'
+                                      : 'text-slate-600 hover:bg-white/60 hover:text-slate-900' }}">
                             {{ $label }}
                         </a>
                     @endforeach
@@ -123,7 +122,7 @@
             <div class="hidden items-center gap-3 md:flex">
                 {{-- Palette trigger --}}
                 <button type="button" x-on:click="openPalette()"
-                        class="group inline-flex h-9 items-center gap-2 rounded-lg border border-sky-200 bg-white px-2.5 text-sm text-slate-500 transition hover:border-sky-300 hover:text-slate-700 lg:w-64 {{ $ring }}">
+                        class="group inline-flex h-9 items-center gap-2 rounded-lg border border-white/40 bg-white/55 px-2.5 text-sm text-slate-500 shadow-sm ring-1 ring-slate-200/50 transition hover:bg-white/70 hover:text-slate-700 lg:w-64 {{ $ring }}">
                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">search</span>
                     <span class="hidden flex-1 text-left lg:inline">Search or jump to…</span>
                     <span class="sr-only lg:hidden">Open search</span>
@@ -135,8 +134,8 @@
                 <x-dropdown align="right" width="56">
                     <x-slot name="trigger">
                         <button type="button"
-                                class="inline-flex items-center gap-2 rounded-lg border border-sky-200 bg-white py-1 pl-1 pr-2.5 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 {{ $ring }}">
-                            <span class="flex h-7 w-7 items-center justify-center rounded-md bg-indigo-600 text-sm font-bold text-white" aria-hidden="true">{{ $initial }}</span>
+                                class="inline-flex items-center gap-2 rounded-lg border border-white/40 bg-white/55 py-1 pl-1 pr-2.5 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200/50 transition hover:bg-white/75 {{ $ring }}">
+                            <span class="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-sm font-bold text-white" aria-hidden="true">{{ $initial }}</span>
                             <span class="hidden max-w-32 truncate xl:inline">{{ $navUser->name }}</span>
                             <span class="sr-only xl:hidden">Account menu for {{ $navUser->name }}</span>
                             <span class="material-symbols-outlined text-[18px] text-slate-400" aria-hidden="true">expand_more</span>
@@ -182,7 +181,7 @@
                         x-on:click="open = !open"
                         x-bind:aria-expanded="open.toString()"
                         aria-controls="mobile-nav"
-                        class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-sky-200/60 hover:text-slate-900 {{ $ring }}">
+                        class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-white/60 hover:text-slate-900 {{ $ring }}">
                     <span class="sr-only">Toggle navigation</span>
                     <svg x-show="!open" class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -200,7 +199,7 @@
          x-show="open"
          x-cloak
          x-transition.opacity.duration.150ms
-         class="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-sky-200 bg-sky-50 md:hidden">
+         class="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-white/30 bg-white/50 backdrop-blur-xl md:hidden">
         <div class="space-y-1 px-3 py-3">
             @foreach ($navLinks as [$label, $routeName, $patterns, $perm, $icon])
                 @php $active = request()->routeIs(...$patterns); @endphp
@@ -226,7 +225,7 @@
 
         <div class="border-t border-sky-200 px-4 py-4">
             <div class="mb-3 flex items-center gap-3">
-                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-base font-bold text-white" aria-hidden="true">{{ $initial }}</span>
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-base font-bold text-white" aria-hidden="true">{{ $initial }}</span>
                 <div class="min-w-0">
                     <p class="truncate text-sm font-semibold text-slate-900">{{ $navUser->name }}</p>
                     <p class="truncate text-sm text-slate-500">{{ $navUser->email }}</p>

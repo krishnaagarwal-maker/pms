@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 
 class UserRoleController extends Controller
@@ -41,11 +42,28 @@ class UserRoleController extends Controller
         );
 
         $availableRoles = Role::query()->pluck('name')->all();
+        $canonicalRoleMap = [
+            'manager' => 'manager',
+            'Manager' => 'manager',
+            'team_member' => 'team_member',
+            'team-member' => 'team_member',
+            'Team Member' => 'team_member',
+            'Team member' => 'team_member',
+        ];
 
         $validated = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
-            'role' => ['required', 'string', Rule::in($availableRoles)],
+            'role' => ['required', 'string'],
         ]);
+
+        $requestRole = trim((string) $validated['role']);
+        $normalizedRole = $canonicalRoleMap[strtolower($requestRole)] ?? $canonicalRoleMap[$requestRole] ?? $requestRole;
+
+        if (! in_array($normalizedRole, $availableRoles, true)) {
+            throw ValidationException::withMessages([
+                'role' => ['The selected role is invalid.'],
+            ]);
+        }
 
         $selectedUser = User::findOrFail($validated['user_id']);
 
@@ -53,9 +71,9 @@ class UserRoleController extends Controller
             return back()->withErrors(['user_id' => 'You cannot change your own role from this screen.']);
         }
 
-        $selectedUser->syncRoles([$validated['role']]);
+        $selectedUser->syncRoles([$normalizedRole]);
 
-        return redirect()->route('projects.users.roles.index')->with('success', 'User role updated to ' . $validated['role'] . '.');
+        return redirect()->route('projects.users.roles.index')->with('success', 'User role updated to ' . $normalizedRole . '.');
     }
 
     public function destroy(Request $request, User $user): RedirectResponse
