@@ -61,8 +61,9 @@ class ProjectController extends Controller
      */
     public function show(Project $project)
     {
-        $tasks = $project->tasks()->latest()->paginate(10);
-        return view('ProjectManagement::projects.show', compact('project','tasks'));
+        $tasks = $project->tasks()->with('assignee')->latest()->paginate(10);
+
+        return view('ProjectManagement::projects.show', compact('project', 'tasks'));
     }
 
     /**

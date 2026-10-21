@@ -125,13 +125,14 @@
                        class="rounded-xl bg-surface-container-lowest px-space-md py-2 text-label-md text-on-surface shadow-sm transition-all hover:bg-surface-container-low">
                         Cancel
                     </a>
-                    {{-- RBAC-CREATE: wrap in @can(...) … @endcan once policies exist --}}
+                    @can('tasks.create')
                     <button type="submit" form="task-form"
                             class="flex items-center gap-2 rounded-xl bg-primary-container px-space-lg py-2 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
                         <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_task</span>
                         Create Task
                         <kbd class="ml-1 hidden rounded bg-primary/30 px-1.5 py-0.5 font-code-sm text-[10px] text-on-primary-container sm:inline">Ctrl ↵</kbd>
                     </button>
+                    @endcan
                 </div>
             </div>
 
@@ -307,7 +308,7 @@
                         </fieldset>
                     </div>
 
-                    {{-- Assignment: needs the 'tasks.assign' permission and $users from the controller --}}
+                   
                     @can('tasks.assign')
                         @isset($users)
                             <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
@@ -511,7 +512,7 @@
                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
                     Discard and back to project
                 </a>
-                <div class="flex items-center gap-space-sm">
+                <!-- <div class="flex items-center gap-space-sm">
                     <a href="{{ route('projects.show', $project) }}"
                        class="rounded-xl bg-surface-container-low px-space-md py-2 text-label-md text-on-surface transition-all hover:bg-surface-container">
                         Cancel
@@ -522,7 +523,7 @@
                         <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_task</span>
                         Create Task
                     </button>
-                </div>
+                </div> -->
             </div>
         </div>
     </div>

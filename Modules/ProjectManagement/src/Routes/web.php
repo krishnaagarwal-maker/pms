@@ -59,8 +59,8 @@ Route::middleware(['web', 'auth'])
         Route::get('/{project}/tasks/{task}', [TaskController::class, 'show'])->middleware('permission:tasks.view')->name('tasks.show');
         Route::get('/{project}/tasks/{task}/edit', [TaskController::class, 'edit'])->middleware('permission:tasks.edit')->name('tasks.edit');
         Route::put('/{project}/tasks/{task}', [TaskController::class, 'update'])
-        ->middleware('permission:tasks.edit|tasks.update-status')
-        ->name('tasks.update'); 
+            ->middleware('permission:tasks.edit|tasks.update-status')
+            ->name('tasks.update');
         Route::delete('/{project}/tasks/{task}', [TaskController::class, 'destroy'])->middleware('permission:tasks.delete')->name('tasks.destroy');
 
         // Remaining project routes

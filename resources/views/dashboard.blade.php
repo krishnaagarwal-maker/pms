@@ -172,7 +172,7 @@
                 <div>
                     <div class="flex flex-wrap items-center gap-3">
                         <h1 class="text-[32px] font-bold leading-10 tracking-[-0.025em] text-slate-900">{{ $greeting }}, {{ $user->name }}</h1>
-                        <span class="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2 py-1 font-code-sm text-[11px] text-indigo-700">
+                        <span class="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 font-code-sm text-[11px] font-semibold text-indigo-700 shadow-sm">
                             <span class="material-symbols-outlined text-[14px]" aria-hidden="true">calendar_today</span>
                             {{ $now->format('l, M d, Y') }}
                         </span>
@@ -183,17 +183,33 @@
                     </p>
                 </div>
 
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-3 text-white shadow-lg shadow-indigo-500/10 xl:block">
+                        <div class="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                            <span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)]"></span>
+                            workspace pulse
+                        </div>
+                        <div class="mt-3 flex items-end gap-5">
+                            <div>
+                                <div class="text-[10px] text-slate-300">Completion</div>
+                                <div class="mt-1 text-2xl font-bold tracking-tight tabular-nums">{{ $resolvedPct }}%</div>
+                            </div>
+                            <div class="pb-0.5 text-[11px] text-slate-300">
+                                <span class="font-semibold text-white">{{ number_format($completed) }}</span> of {{ number_format($total) }} done
+                            </div>
+                        </div>
+                    </div>
+
                     @can('tasks.view')
                         <a href="{{ route('projects.my-tasks') }}"
-                           class="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 {{ $focus }}">
+                           class="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 shadow-sm {{ $focus }}">
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">assignment_ind</span>
                             View my tasks
                         </a>
                     @endcan
                     @can('projects.create')
                         <a href="{{ route('projects.create') }}"
-                           class="inline-flex h-9 items-center gap-2 rounded-md bg-indigo-600 px-4 text-sm font-medium text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15)] transition hover:bg-indigo-700 {{ $focus }}">
+                           class="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-[0_10px_20px_-12px_rgba(79,70,229,0.8)] transition hover:from-indigo-500 hover:to-violet-500 {{ $focus }}">
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
                             New project
                         </a>
@@ -205,9 +221,12 @@
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
                 {{-- Start here --}}
-                <section class="{{ $card }} overflow-hidden lg:col-span-2" aria-labelledby="focus-heading">
+                <section class="{{ $card }} overflow-hidden bg-gradient-to-br from-white via-slate-50 to-indigo-50/60 lg:col-span-2" aria-labelledby="focus-heading">
                     <div class="p-6">
-                        <h2 id="focus-heading" class="text-sm font-semibold text-slate-500">Start here</h2>
+                        <div class="flex items-center justify-between gap-3">
+                            <h2 id="focus-heading" class="text-sm font-semibold text-slate-500">Start here</h2>
+                            <span class="rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-700">Priority</span>
+                        </div>
 
                         @if ($focusTask)
                             @php
@@ -231,12 +250,12 @@
                                         @else
                                             <span class="{{ $chip }} bg-slate-100 text-slate-600">{{ $fLabel }}</span>
                                         @endif
-                                        <span class="{{ $chip }} {{ $fpPill }}"><span class="h-1.5 w-1.5 rounded-full {{ $fpDot }}"></span>{{ $fpText }} priority</span>
+                                        <span class="{{ $chip }} {{ $fpPill }}"><span class="h-1.5 w-1.5 rounded-full {{ $fpDot }}"></span>{{ $fpText }} </span>
                                         <span class="{{ $chip }} {{ $fsPill }}"><span class="h-1.5 w-1.5 rounded-full {{ $fsDot }}"></span>{{ $fsText }}</span>
                                     </div>
                                 </div>
                                 <a href="{{ route('projects.tasks.show', [$focusTask->project_id, $focusTask]) }}"
-                                   class="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-indigo-600 px-4 text-sm font-medium text-white transition hover:bg-indigo-700 {{ $focus }}">
+                                   class="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(79,70,229,0.9)] transition hover:from-indigo-500 hover:to-violet-500 {{ $focus }}">
                                     {{ $focusTask->status === 'in_progress' ? 'Resume task' : 'Open task' }}
                                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
                                 </a>
@@ -381,7 +400,7 @@
                             Calculated across all tasks
                         </span>
                         @can('tasks.view')
-                            <a href="{{ route('projects.tasks.index') }}" class="inline-flex items-center gap-1 rounded text-sm font-medium text-indigo-600 hover:text-indigo-700 {{ $focus }}">
+                            <a href="{{ route('projects.tasks.index') }}" class="inline-flex items-center gap-1 rounded text-sm font-semibold text-indigo-600 hover:text-indigo-700 {{ $focus }}">
                                 View all tasks
                                 <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span>
                             </a>

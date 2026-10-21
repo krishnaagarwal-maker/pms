@@ -1,27 +1,3 @@
-{{-- View: tasks.show (route: projects.tasks.show) --}}
-
-{{--
-|--------------------------------------------------------------------------
-| RBAC / DYNAMIC DATA NOTES
-|--------------------------------------------------------------------------
-| ROLE & PERMISSIONS card: kept ACTIVE but safe. It only renders when
-| $task->assignedRole exists, so nothing breaks before RBAC is built.
-| It reads: assignedRole->name, ->is_system, ->permissions[]->name
-| (default roles: manager, team member; custom roles supported).
-|
-| AUDIT TRAIL: uses the task's own timestamps by default. Pass $activities
-| from the controller for a full log (e.g. spatie/laravel-activitylog:
-| $task->activities()->latest()->take(10)->get()). Each item needs
-| description, created_at, optional causer (user).
-|
-| COMMENTS: commented out (search for RBAC-COMMENTS). Needs a comments table,
-| a store route and a permission such as tasks.comment.
-|
-| RBAC-EDIT / RBAC-DELETE: wrap the Edit / Delete buttons in
-| @can('update', $task) / @can('delete', $task) once policies exist.
-| (an undefined ability returns false, so do NOT add @can earlier, or the
-| buttons will disappear)
---}}
 
 @php
     $project = $project ?? $task->project;
@@ -113,13 +89,8 @@
                         <span class="material-symbols-outlined text-[18px]" aria-hidden="true" x-text="linkCopied ? 'check' : 'share'">share</span>
                         <span x-text="linkCopied ? 'Link copied' : 'Share'">Share</span>
                     </button>
-                    @can('tasks.edit')
-                        <a href="{{ route('projects.tasks.edit', [$project, $task]) }}"
-                           class="flex items-center gap-1.5 rounded-xl bg-primary-container px-space-lg py-2 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
-                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
-                            Edit Task
-                        </a>
-                    @endcan
+                   
+                  
                 </div>
             </div>
 
@@ -137,8 +108,8 @@
                                 {{ ucfirst(str_replace('_', ' ', $task->status)) }}
                             </span>
                             <span class="{{ $pill }} {{ $priorityPill }}">
-                                <span class="material-symbols-outlined text-[13px]" aria-hidden="true">flag</span>
-                                {{ ucfirst($task->priority) }} Priority
+                               
+                                {{ ucfirst($task->priority) }} 
                             </span>
                             @if ($dueState)
                                 <span class="{{ $pill }} ml-auto {{ $dueStyles[$dueState] }}">
@@ -157,6 +128,10 @@
                             <span class="text-outline-variant">·</span>
                             Last updated {{ $task->updated_at->diffForHumans() }}
                         </p>
+
+                        <div class="mt-space-md flex flex-wrap items-center gap-space-sm">
+                            
+                        </div>
 
                         {{-- Specification --}}
                         <div class="mt-space-lg rounded-xl bg-surface-container-low p-space-md">
@@ -394,8 +369,56 @@
                                 <a href="{{ route('projects.tasks.edit', [$project, $task]) }}"
                                    class="flex items-center justify-center gap-2 rounded-xl bg-primary-container px-space-md py-2.5 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
                                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
-                                    Edit Full Specifications
+                                    Edit Specs
                                 </a>
+                            @endcan
+
+                            @can('tasks.update-status')
+                                @unless (auth()->user()?->can('tasks.edit'))
+                                    <form action="{{ route('projects.tasks.update', [$project, $task]) }}" method="POST" class="w-full">
+                                        @csrf
+                                        @method('PUT')
+
+                                        <fieldset class="mt-space-sm">
+                                            <legend class="mb-space-xs flex items-center gap-1 text-label-md text-on-surface">
+                                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">hourglass_empty</span>
+                                                Execution Status <span class="text-error">*</span>
+                                            </legend>
+
+                                            <div class="grid grid-cols-1 gap-1 rounded-xl bg-surface-container-low p-1 sm:grid-cols-3">
+                                                @foreach ([
+                                                    ['pending', 'Pending', 'radio_button_unchecked'],
+                                                    ['in_progress', 'In Progress', 'timelapse'],
+                                                    ['completed', 'Completed', 'check_circle'],
+                                                ] as [$value, $label, $icon])
+                                                    <label class="cursor-pointer">
+                                                        <input type="radio" name="status" value="{{ $value }}" {{ $task->status === $value ? 'checked' : '' }} required class="peer sr-only">
+                                                        <span class="flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-label-md transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container {{ $task->status === $value ? (
+                                                            $value === 'in_progress' ? 'bg-secondary-fixed text-on-secondary-fixed shadow-sm' :
+                                                            ($value === 'completed' ? 'bg-tertiary-fixed text-on-tertiary-fixed shadow-sm' : 'bg-surface-container-lowest text-on-surface shadow-sm')
+                                                        ) : 'text-on-surface-variant hover:text-on-surface' }}">
+                                                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $icon }}</span>
+                                                            {{ $label }}
+                                                        </span>
+                                                    </label>
+                                                @endforeach
+                                            </div>
+
+                                            @error('status')
+                                                <p class="mt-1.5 flex items-center gap-1 text-body-sm text-error">
+                                                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>
+                                                    {{ $message }}
+                                                </p>
+                                            @enderror
+                                        </fieldset>
+
+                                        <button type="submit"
+                                                class="mt-space-sm flex w-full items-center justify-center gap-2 rounded-xl bg-secondary-container px-space-md py-2.5 text-label-md text-on-secondary-container transition-colors hover:bg-secondary hover:text-on-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2">
+                                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">update</span>
+                                            Updatex Status
+                                        </button>
+                                    </form>
+                                @endunless
                             @endcan
 
                             @can('tasks.delete')
@@ -406,7 +429,7 @@
                                     <button type="submit"
                                             class="flex w-full items-center justify-center gap-2 rounded-xl bg-error-container/60 px-space-md py-2.5 text-label-md text-on-error-container transition-colors hover:bg-error hover:text-on-error focus:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2">
                                         <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
-                                        Delete Task…
+                                        Delete Task
                                     </button>
                                 </form>
                             @endcan

@@ -1,26 +1,3 @@
-{{-- View: projects.edit --}}
-
-{{--
-|--------------------------------------------------------------------------
-| RBAC NOTES (dynamic roles & permissions — not wired up yet)
-|--------------------------------------------------------------------------
-| Planned: default roles "manager" and "team member", plus custom roles
-| with custom permissions. Everything role/permission/assignee related is
-| COMMENTED OUT below so this page works without any RBAC tables/policies.
-|
-| When RBAC exists, enable these (search for the RBAC-… markers):
-|   1. RBAC-ASSIGNEE   : "Assignment" section (project lead dropdown)
-|   2. RBAC-SQUAD      : "Assigned Squad" avatars in the preview card
-|   3. RBAC-DELETE     : wrap the Danger Zone in @can('projects.delete')
-|   4. RBAC-SAVE       : wrap Save buttons in @can('update', $project)
-|      (an undefined ability returns false, so do NOT add @can before the
-|      permission/policy exists, or those parts will disappear)
-|   5. Controller edit():   pass 'assignableUsers' => User::orderBy('name')->get()
-|   6. Controller update(): $this->authorize('update', $project);
-|        'lead_id' => ['nullable', 'exists:users,id'],
-|        and only accept lead_id if $request->user()->can('projects.assign')
---}}
-
 @php
     $totalTasks     = $project->tasks()->count();
     $completedTasks = $project->tasks()->whereIn('status', ['completed', 'done'])->count();
@@ -234,42 +211,7 @@
                             </div>
                         </div>
 
-                        {{--
-                        |------------------------------------------------------------------
-                        | RBAC-ASSIGNEE: Assignment (COMMENTED OUT)
-                        |------------------------------------------------------------------
-                        | Enable after roles/permissions exist. Needs:
-                        |   - $assignableUsers passed from ProjectController@edit
-                        |   - permission "projects.assign" (manager has it by default;
-                        |     team member does not; custom roles can be granted it)
-                        |   - a nullable lead_id column on projects (foreignId -> users)
-                        |   - 'lead_id' validated + authorized in ProjectController@update
-                        |
-                        | To enable: remove the Blade comment markers around this block.
-                        |
-                        | @can('projects.assign')
-                        | <div>
-                        |     <h3 class="mb-space-sm text-title-sm text-on-surface">Assignment</h3>
-                        |     <div class="rounded-xl bg-surface-container-low p-space-md">
-                        |         <label for="lead_id" class="mb-space-xs block text-label-sm uppercase tracking-wider text-on-surface-variant">
-                        |             Project Lead
-                        |         </label>
-                        |         <select id="lead_id" name="lead_id"
-                        |                 class="w-full rounded-xl border-0 bg-surface-container-lowest py-2 pl-3 pr-8 text-body-md text-on-surface shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:outline-none focus:ring-0 focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]">
-                        |             <option value="">Unassigned</option>
-                        |             @foreach ($assignableUsers as $user)
-                        |                 <option value="{{ $user->id }}" @selected(old('lead_id', $project->lead_id) == $user->id)>
-                        |                     {{ $user->name }}
-                        |                 </option>
-                        |             @endforeach
-                        |         </select>
-                        |         @error('lead_id')
-                        |             <p class="mt-1.5 text-body-sm text-error">{{ $message }}</p>
-                        |         @enderror
-                        |     </div>
-                        | </div>
-                        | @endcan
-                        --}}
+                        
                     </div>
 
                     {{-- Form footer --}}
@@ -294,12 +236,12 @@
                     </div>
                 </form>
 
-                {{-- RIGHT: live health preview + danger zone --}}
+             
                 <aside class="flex flex-col gap-space-lg lg:col-span-4">
 
                     <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
                         <div class="mb-space-md flex items-center justify-between">
-                            <h3 class="text-title-md text-on-surface">Live Health Preview</h3>
+                            <h3 class="text-title-md text-on-surface">Preview</h3>
                             <span class="inline-flex items-center gap-1.5 rounded-full bg-surface-container-high px-2.5 py-0.5 text-label-sm text-on-surface">
                                 <span class="h-2 w-2 rounded-full"
                                       :class="statusMap[status].dot + (statusMap[status].pulse ? ' animate-pulse' : '')"
@@ -346,33 +288,14 @@
                             </div>
                         </div>
 
-                        {{--
-                        | RBAC-SQUAD: "Assigned Squad" (COMMENTED OUT)
-                        | Enable once projects have members (e.g. project_user pivot).
-                        |
-                        | <div class="mt-space-lg flex items-center justify-between">
-                        |     <span class="text-body-sm text-on-surface-variant">Assigned Squad</span>
-                        |     <div class="flex -space-x-2">
-                        |         @foreach ($project->members->take(3) as $member)
-                        |             <span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-fixed text-[11px] font-bold uppercase text-on-primary-fixed ring-2 ring-surface-container-lowest">
-                        |                 {{ Str::substr($member->name, 0, 1) }}
-                        |             </span>
-                        |         @endforeach
-                        |         @if ($project->members->count() > 3)
-                        |             <span class="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-high text-[11px] font-semibold text-on-surface-variant ring-2 ring-surface-container-lowest">
-                        |                 +{{ $project->members->count() - 3 }}
-                        |             </span>
-                        |         @endif
-                        |     </div>
-                        | </div>
-                        --}}
+                       
                     </div>
 
                     {{-- RBAC-DELETE: wrap this card in @can('projects.delete') … @endcan once permissions exist --}}
                     <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
                         <div class="mb-space-sm flex items-center gap-space-xs text-error">
                             <span class="material-symbols-outlined text-[22px]" aria-hidden="true">warning</span>
-                            <h3 class="text-title-md">Danger Zone</h3>
+                          
                         </div>
                         <p class="mb-space-md text-body-md text-on-surface-variant">
                             Once deleted, all

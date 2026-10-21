@@ -278,12 +278,13 @@
                             @endforeach
                         </div>
                     @endif
-
+                    @can('tasks.create')
                     <a href="{{ route('projects.tasks.create', $project) }}"
                        class="flex h-9 items-center gap-1.5 rounded-xl bg-primary-container px-space-md text-label-md text-on-primary shadow-sm transition-colors hover:bg-primary">
                         <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_task</span>
                         Create Task
                     </a>
+                    @endcan
                 </div>
             </div>
 
@@ -329,6 +330,7 @@
                         <thead>
                             <tr class="h-10 bg-surface-container-low text-label-sm uppercase tracking-wider text-on-surface-variant">
                                 <th scope="col" class="px-space-lg py-2.5">Task Title</th>
+                                <th scope="col" class="px-space-md py-2.5">Assignee</th>
                                 <th scope="col" class="px-space-md py-2.5">Due Date</th>
                                 <th scope="col" class="px-space-md py-2.5">Priority</th>
                                 <th scope="col" class="px-space-md py-2.5">Status</th>
@@ -373,6 +375,20 @@
                                                 </span>
                                             </div>
                                         </div>
+                                    </td>
+
+                                    {{-- Assignee --}}
+                                    <td class="whitespace-nowrap px-space-md py-3">
+                                        @if ($task->assignee)
+                                            <div class="flex items-center gap-2">
+                                                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-primary-container text-[10px] font-semibold text-primary">
+                                                    {{ strtoupper(substr($task->assignee->name, 0, 2)) }}
+                                                </span>
+                                                <span class="text-body-sm font-medium text-on-surface">{{ $task->assignee->name }}</span>
+                                            </div>
+                                        @else
+                                            <span class="text-body-sm text-on-surface-variant">Unassigned</span>
+                                        @endif
                                     </td>
 
                                     {{-- Due date --}}
@@ -431,6 +447,18 @@
                                                     <span class="sr-only">Edit</span>
                                                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
                                                 </a>
+                                            @endcan
+                                            @can('tasks.update-status')
+                                                <form action="{{ route('projects.tasks.update', [$project, $task]) }}" method="POST" class="inline">
+                                                    @csrf
+                                                    @method('PUT')
+                                                    <input type="hidden" name="status" value="{{ $task->status === 'pending' ? 'in_progress' : ($task->status === 'in_progress' ? 'completed' : 'pending') }}">
+                                                    <button type="submit" title="Update Status"
+                                                            class="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-secondary-container hover:text-on-secondary-container">
+                                                        <span class="sr-only">Update Status</span>
+                                                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">sync</span>
+                                                    </button>
+                                                </form>
                                             @endcan
                                             @can('tasks.delete')
                                                 <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST" class="inline"

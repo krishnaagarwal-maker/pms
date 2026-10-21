@@ -115,14 +115,12 @@ class TaskController extends Controller
   
 public function update(Request $request, Project $project, Task $task)
 {
-    // Ensure the task belongs to the project in the URL.
     $task = $project->tasks()->findOrFail($task->id);
 
     $user = $request->user();
 
-    // Users without the full tasks.edit permission can only update task status.
     if (! $user->can('tasks.edit')) {
-        abort_unless($user->can('tasks.update-status'), 403);
+        abort_unless($user->can('tasks.update-status'), 403, 'You do not have permission to update this task.');
 
         abort_unless(
             (int) $task->assigned_to === (int) $user->id,
@@ -143,15 +141,16 @@ public function update(Request $request, Project $project, Task $task)
             ->with('success', 'Task status updated successfully.');
     }
 
-    // Full task editing requires the tasks.edit permission.
-    $validated = $request->validate([
+    $rules = [
         'title' => ['required', 'string', 'max:255'],
         'description' => ['nullable', 'string'],
         'due_date' => ['nullable', 'date'],
         'priority' => ['required', 'in:low,medium,high'],
         'status' => ['required', 'in:pending,in_progress,completed'],
         'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
-    ]);
+    ];
+
+    $validated = $request->validate($rules);
 
     $task->update($validated);
 
