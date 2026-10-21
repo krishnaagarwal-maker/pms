@@ -1,27 +1,25 @@
-{{-- View: dashboard (enhanced) --}}
+{{-- View: dashboard --}}
 
 {{--
 |--------------------------------------------------------------------------
-| DATA NOTES  (same contract as before, nothing new is required)
+| DATA NOTES
 |--------------------------------------------------------------------------
 | Required:
 |   $projectsCount, $totalTasks, $completedTasks, $pendingTasks,
 |   $overdueTasks, $upcomingTasks (tasks with ->project loaded)
 |
 | Optional (the page adapts if they are missing):
-|   $inProgressTasks  int
-|   $priorityCounts   array ['high' => n, 'medium' => n, 'low' => n]
-|   $attentionTasks   collection  overdue + due within 3 days, with ->project
-|   $recentTasks      collection  recently updated tasks, with ->project
+|   $inProgressTasks         int
+|   $priorityCounts          array ['high' => n, 'medium' => n, 'low' => n]
+|   $attentionTasks          collection  overdue + due within 3 days, with ->project
+|   $recentTasks             collection  recently updated tasks, with ->project
+|   $notifications           collection  latest database notifications
+|   $unreadNotificationCount int
+|   $projectHealth           collection  one row per project (array or object):
+|                            id, name, total, completed, overdue
+|                            (shows the "Project health" section)
 |
-| What's new
-|   - "Start here" focus card: the single most urgent open task + a plain-language summary
-|   - Next 7 days load (built from $upcomingTasks, no extra query)
-|   - Segmented progress bar across the whole task set
-|   - Attention table: filter tabs (Alpine.js, ships with Breeze), sorted by urgency then priority
-|   - Next Actions now really sorted by due date, then priority
-|   - Donut chart: accessible summary + hover titles + empty state
-|   - Sentence-case labels, visible keyboard focus, reduced-motion safe
+| Requires Alpine.js v3 (ships with Breeze).
 --}}
 
 @php
@@ -82,6 +80,11 @@
         fn ($a, $b) => ($priorityWeight[$a->priority] ?? 3) <=> ($priorityWeight[$b->priority] ?? 3),
     ])->values();
 
+    // Only allow relative or http(s) links coming from notification data.
+    $safeLink = fn ($l) => is_string($l) && ! Str::startsWith($l, '//') && Str::startsWith($l, ['/', 'http://', 'https://'])
+        ? $l
+        : route('dashboard');
+
     $statusChip = [
         'completed'   => ['bg-emerald-50 text-emerald-700', 'bg-emerald-500', 'Completed'],
         'in_progress' => ['bg-indigo-50 text-indigo-700',   'bg-indigo-500',  'In progress'],
@@ -95,6 +98,14 @@
     $chip  = 'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium';
     $focus = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2';
     $card  = 'rounded-lg border border-slate-200 bg-white shadow-[0_1px_3px_0_rgba(15,23,42,0.06)]';
+    $btnSecondary = 'inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 motion-reduce:transition-none ' . $focus;
+    $btnPrimary   = 'inline-flex h-10 items-center gap-2 rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.15)] transition hover:bg-indigo-700 motion-reduce:transition-none ' . $focus;
+
+    // ---- Notifications ---------------------------------------------------
+    $notifications  = collect($notifications ?? []);
+    $unreadCount    = (int) ($unreadNotificationCount ?? 0);
+    $unreadBadge    = $unreadCount > 9 ? '9+' : (string) $unreadCount;
+    $canReadAll     = \Illuminate\Support\Facades\Route::has('notifications.read-all');
 
     // ---- Lists -----------------------------------------------------------
     $upcoming  = collect($upcomingTasks);
@@ -112,7 +123,14 @@
     $recent = isset($recentTasks) ? collect($recentTasks)->take(4) : $upcoming->sortByDesc('updated_at')->take(4);
 
     // ---- Focus task: most urgent thing to start with ---------------------
-    $focusTask = $attention->first() ?? $next->first();
+    $focusTask   = $attention->first() ?? $next->first();
+    $focusState  = $focusTask ? $urgency($focusTask)[0] : 'clear';
+    $focusAccent = match ($focusState) {
+        'overdue' => 'border-l-red-500',
+        'soon'    => 'border-l-amber-500',
+        'clear'   => 'border-l-emerald-500',
+        default   => 'border-l-indigo-600',
+    };
 
     // ---- Summary sentence --------------------------------------------------
     if ($attentionOverdue > 0) {
@@ -133,8 +151,9 @@
     $week = collect(range(0, 6))->map(function ($i) use ($today, $openTasks) {
         $day = $today->copy()->addDays($i);
         return [
-            'label' => $i === 0 ? 'Today' : ($i === 1 ? 'Tomorrow' : $day->format('D, M d')),
-            'count' => $openTasks->filter(fn ($t) => $t->due_date
+            'label'   => $i === 0 ? 'Today' : ($i === 1 ? 'Tomorrow' : $day->format('D, M d')),
+            'weekend' => $day->isWeekend(),
+            'count'   => $openTasks->filter(fn ($t) => $t->due_date
                 && \Illuminate\Support\Carbon::parse($t->due_date)->isSameDay($day))->count(),
         ];
     });
@@ -153,6 +172,24 @@
         ];
     }
 
+    // ---- Project health (optional) --------------------------------------
+    $health = null;
+    if (isset($projectHealth)) {
+        $health = collect($projectHealth)->map(function ($p) {
+            $t = (int) data_get($p, 'total', 0);
+            $c = (int) data_get($p, 'completed', 0);
+            return [
+                'id'      => data_get($p, 'id'),
+                'name'    => data_get($p, 'name', 'Untitled project'),
+                'total'   => $t,
+                'done'    => $c,
+                'overdue' => (int) data_get($p, 'overdue', 0),
+                'pct'     => $t > 0 ? (int) round(($c / $t) * 100) : 0,
+            ];
+        })->sortBy([['overdue', 'desc'], ['pct', 'asc']])->take(6)->values();
+    }
+    $canOpenProject = \Illuminate\Support\Facades\Route::has('projects.show');
+
     // ---- KPI cards -------------------------------------------------------
     $kpis = [
         ['Total projects',    $projectsCount,  'projects.view', 'projects.index',       'folder_open',  'bg-indigo-50 text-indigo-600',   'Active in workspace'],
@@ -164,7 +201,14 @@
 @endphp
 
 <x-app-layout>
-    <div class="min-h-screen bg-slate-50 py-space-xl font-inter">
+    <style>
+        [x-cloak] { display: none !important; }
+        @media (prefers-reduced-motion: reduce) {
+            .dash-motion * { transition: none !important; animation: none !important; }
+        }
+    </style>
+
+    <div class="dash-motion min-h-screen bg-slate-50 py-space-xl font-inter">
         <div class="mx-auto max-w-[1600px] space-y-6 px-4 sm:px-6 lg:px-8">
 
             {{-- Greeting --}}
@@ -172,7 +216,7 @@
                 <div>
                     <div class="flex flex-wrap items-center gap-3">
                         <h1 class="text-[32px] font-bold leading-10 tracking-[-0.025em] text-slate-900">{{ $greeting }}, {{ $user->name }}</h1>
-                        <span class="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 font-code-sm text-[11px] font-semibold text-indigo-700 shadow-sm">
+                        <span class="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 font-code-sm text-[11px] font-semibold text-indigo-700">
                             <span class="material-symbols-outlined text-[14px]" aria-hidden="true">calendar_today</span>
                             {{ $now->format('l, M d, Y') }}
                         </span>
@@ -184,25 +228,30 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-3">
-                    <div x-data="{ open: false }" class="relative">
+                    {{-- Notifications --}}
+                    <div x-data="{ open: false }" x-on:keydown.escape.window="open = false" class="relative">
                         <button type="button"
-                                @click="open = !open"
-                                class="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 {{ $focus }}"
-                                aria-label="Notifications"
+                                x-on:click="open = !open"
+                                class="relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 {{ $focus }}"
                                 aria-haspopup="true"
-                                :aria-expanded="open">
+                                aria-controls="notification-panel"
+                                x-bind:aria-expanded="open.toString()">
+                            <span class="sr-only">Notifications{{ $unreadCount > 0 ? ', ' . $unreadCount . ' unread' : '' }}</span>
                             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">notifications</span>
-                            @if(($unreadNotificationCount ?? 0) > 0)
-                                <span class="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
-                                    {{ min(9, $unreadNotificationCount) }}
+                            @if ($unreadCount > 0)
+                                <span aria-hidden="true" class="absolute -right-1 -top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+                                    {{ $unreadBadge }}
                                 </span>
                             @endif
                         </button>
 
-                        <div x-show="open"
+                        <div id="notification-panel"
+                             x-show="open"
                              x-cloak
-                             @click.away="open = false"
-                             class="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl ring-1 ring-slate-200"
+                             x-on:click.outside="open = false"
+                             role="region"
+                             aria-label="Notifications"
+                             class="absolute right-0 z-50 mt-2 w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"
                              x-transition:enter="transition ease-out duration-150"
                              x-transition:enter-start="opacity-0 translate-y-1"
                              x-transition:enter-end="opacity-100 translate-y-0"
@@ -210,67 +259,63 @@
                              x-transition:leave-start="opacity-100 translate-y-0"
                              x-transition:leave-end="opacity-0 translate-y-1">
                             <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
-                                <div class="text-sm font-semibold text-slate-800">Notifications</div>
-                                @if(($notifications ?? collect())->isNotEmpty())
+                                <div class="text-sm font-semibold text-slate-800">
+                                    Notifications
+                                    @if ($unreadCount > 0)
+                                        <span class="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-medium text-indigo-700">{{ $unreadCount }} new</span>
+                                    @endif
+                                </div>
+                                @if ($notifications->isNotEmpty() && $unreadCount > 0 && $canReadAll)
                                     <form action="{{ route('notifications.read-all') }}" method="POST">
                                         @csrf
-                                        <button type="submit" class="text-[11px] font-semibold uppercase tracking-wide text-indigo-600 hover:text-indigo-700">
-                                            Read all
+                                        <button type="submit" class="rounded text-xs font-semibold text-indigo-600 hover:text-indigo-700 {{ $focus }}">
+                                            Mark all as read
                                         </button>
                                     </form>
                                 @endif
                             </div>
 
                             <div class="max-h-80 overflow-y-auto">
-                                @forelse($notifications ?? collect() as $notification)
+                                @forelse ($notifications as $notification)
                                     @php
-                                        $notificationData = $notification->data ?? [];
-                                        $notificationMessage = $notificationData['message'] ?? 'System update';
-                                        $notificationLink = $notificationData['link'] ?? null;
+                                        $nData    = $notification->data ?? [];
+                                        $nMessage = $nData['message'] ?? 'System update';
+                                        $nLink    = $safeLink($nData['link'] ?? null);
+                                        $nUnread  = is_null($notification->read_at);
                                     @endphp
-                                    <a href="{{ $notificationLink ?? route('dashboard') }}"
-                                       class="block border-b border-slate-100 px-4 py-3 transition hover:bg-slate-50 {{ is_null($notification->read_at) ? 'bg-indigo-50/40' : '' }}">
+                                    <a href="{{ $nLink }}"
+                                       class="block border-b border-slate-100 px-4 py-3 transition last:border-b-0 hover:bg-slate-50 {{ $nUnread ? 'bg-indigo-50/40' : '' }} {{ $focus }}">
                                         <div class="flex items-start gap-3">
-                                            <span class="mt-1 inline-flex h-2.5 w-2.5 rounded-full {{ is_null($notification->read_at) ? 'bg-indigo-500' : 'bg-slate-300' }}"></span>
+                                            <span class="mt-1.5 inline-flex h-2 w-2 shrink-0 rounded-full {{ $nUnread ? 'bg-indigo-500' : 'bg-slate-300' }}">
+                                                <span class="sr-only">{{ $nUnread ? 'Unread' : 'Read' }}</span>
+                                            </span>
                                             <div class="min-w-0 flex-1">
-                                                <p class="text-sm font-medium text-slate-800">{{ $notificationMessage }}</p>
+                                                <p class="text-sm {{ $nUnread ? 'font-semibold text-slate-900' : 'font-medium text-slate-700' }}">{{ $nMessage }}</p>
                                                 <p class="mt-1 text-xs text-slate-500">{{ $notification->created_at?->diffForHumans() ?? 'just now' }}</p>
                                             </div>
                                         </div>
                                     </a>
                                 @empty
-                                    <div class="px-4 py-5 text-sm text-slate-500">No notifications yet.</div>
+                                    <div class="px-4 py-8 text-center">
+                                        <span class="material-symbols-outlined text-[28px] text-slate-300" aria-hidden="true">notifications_off</span>
+                                        <p class="mt-1 text-sm font-medium text-slate-700">You are all caught up</p>
+                                        <p class="text-xs text-slate-500">New activity will show up here.</p>
+                                    </div>
                                 @endforelse
                             </div>
                         </div>
                     </div>
 
-                    <div class="hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-3 text-white shadow-lg shadow-indigo-500/10 xl:block">
-                        <div class="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-                            <span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)]"></span>
-                            workspace pulse
-                        </div>
-                        <div class="mt-3 flex items-end gap-5">
-                            <div>
-                                <div class="text-[10px] text-slate-300">Completion</div>
-                                <div class="mt-1 text-2xl font-bold tracking-tight tabular-nums">{{ $resolvedPct }}%</div>
-                            </div>
-                            <div class="pb-0.5 text-[11px] text-slate-300">
-                                <span class="font-semibold text-white">{{ number_format($completed) }}</span> of {{ number_format($total) }} done
-                            </div>
-                        </div>
-                    </div>
+              
 
                     @can('tasks.view')
-                        <a href="{{ route('projects.my-tasks') }}"
-                           class="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 shadow-sm {{ $focus }}">
+                        <a href="{{ route('projects.my-tasks') }}" class="{{ $btnSecondary }}">
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">assignment_ind</span>
                             View my tasks
                         </a>
                     @endcan
                     @can('projects.create')
-                        <a href="{{ route('projects.create') }}"
-                           class="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-[0_10px_20px_-12px_rgba(79,70,229,0.8)] transition hover:from-indigo-500 hover:to-violet-500 {{ $focus }}">
+                        <a href="{{ route('projects.create') }}" class="{{ $btnPrimary }}">
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
                             New project
                         </a>
@@ -282,12 +327,9 @@
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
                 {{-- Start here --}}
-                <section class="{{ $card }} overflow-hidden bg-gradient-to-br from-white via-slate-50 to-indigo-50/60 lg:col-span-2" aria-labelledby="focus-heading">
+                <section class="{{ $card }} overflow-hidden border-l-4 {{ $focusAccent }} lg:col-span-2" aria-labelledby="focus-heading">
                     <div class="p-6">
-                        <div class="flex items-center justify-between gap-3">
-                            <h2 id="focus-heading" class="text-sm font-semibold text-slate-500">Start here</h2>
-                            <span class="rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-700">Priority</span>
-                        </div>
+                        <h2 id="focus-heading" class="text-sm font-semibold text-slate-500">Start here</h2>
 
                         @if ($focusTask)
                             @php
@@ -298,10 +340,11 @@
                             <div class="mt-3 flex flex-wrap items-start justify-between gap-4">
                                 <div class="min-w-0 flex-1">
                                     <a href="{{ route('projects.tasks.show', [$focusTask->project_id, $focusTask]) }}"
-                                       class="block text-2xl font-bold leading-8 tracking-tight text-slate-900 hover:text-indigo-600 {{ $focus }} rounded">{{ $focusTask->title }}</a>
+                                       class="block rounded text-2xl font-bold leading-8 tracking-tight text-slate-900 hover:text-indigo-600 {{ $focus }}">{{ $focusTask->title }}</a>
                                     <p class="mt-1 text-sm text-slate-500">
                                         <span class="font-code-sm text-xs">{{ $ticket($focusTask) }}</span>
                                         in {{ $focusTask->project?->name ?? 'No project' }}
+                                        @if ($fDate) · {{ $fDate }} @endif
                                     </p>
                                     <div class="mt-3 flex flex-wrap items-center gap-2">
                                         @if ($fState === 'overdue')
@@ -311,12 +354,11 @@
                                         @else
                                             <span class="{{ $chip }} bg-slate-100 text-slate-600">{{ $fLabel }}</span>
                                         @endif
-                                        <span class="{{ $chip }} {{ $fpPill }}"><span class="h-1.5 w-1.5 rounded-full {{ $fpDot }}"></span>{{ $fpText }} </span>
+                                        <span class="{{ $chip }} {{ $fpPill }}"><span class="h-1.5 w-1.5 rounded-full {{ $fpDot }}"></span>{{ $fpText }} priority</span>
                                         <span class="{{ $chip }} {{ $fsPill }}"><span class="h-1.5 w-1.5 rounded-full {{ $fsDot }}"></span>{{ $fsText }}</span>
                                     </div>
                                 </div>
-                                <a href="{{ route('projects.tasks.show', [$focusTask->project_id, $focusTask]) }}"
-                                   class="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(79,70,229,0.9)] transition hover:from-indigo-500 hover:to-violet-500 {{ $focus }}">
+                                <a href="{{ route('projects.tasks.show', [$focusTask->project_id, $focusTask]) }}" class="{{ $btnPrimary }} h-11">
                                     {{ $focusTask->status === 'in_progress' ? 'Resume task' : 'Open task' }}
                                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_forward</span>
                                 </a>
@@ -367,12 +409,12 @@
                     <ul class="space-y-2.5">
                         @foreach ($week as $d)
                             <li class="flex items-center gap-3 text-sm">
-                                <span class="w-24 shrink-0 {{ $loop->first ? 'font-semibold text-slate-900' : 'text-slate-600' }}">{{ $d['label'] }}</span>
+                                <span class="w-24 shrink-0 {{ $loop->first ? 'font-semibold text-slate-900' : ($d['weekend'] ? 'text-slate-400' : 'text-slate-600') }}">{{ $d['label'] }}</span>
                                 <span class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                                     <span class="block h-full rounded-full {{ $loop->first ? 'bg-indigo-600' : 'bg-indigo-300' }}"
                                           style="width: {{ $d['count'] > 0 ? max(8, round(($d['count'] / $weekMax) * 100)) : 0 }}%"></span>
                                 </span>
-                                <span class="w-5 text-right text-xs font-semibold tabular-nums {{ $d['count'] ? 'text-slate-900' : 'text-slate-300' }}">{{ $d['count'] }}</span>
+                                <span class="w-5 text-right text-xs font-semibold tabular-nums {{ $d['count'] ? 'text-slate-900' : 'text-slate-300' }}">{{ $d['count'] }}<span class="sr-only"> {{ Str::plural('task', $d['count']) }} due</span></span>
                             </li>
                         @endforeach
                     </ul>
@@ -461,7 +503,7 @@
                             Calculated across all tasks
                         </span>
                         @can('tasks.view')
-                            <a href="{{ route('projects.tasks.index') }}" class="inline-flex items-center gap-1 rounded text-sm font-semibold text-indigo-600 hover:text-indigo-700 {{ $focus }}">
+                            <a href="{{ route('projects.tasks.index') }}" class="inline-flex items-center gap-1 rounded text-sm font-medium text-indigo-600 hover:text-indigo-700 {{ $focus }}">
                                 View all tasks
                                 <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span>
                             </a>
@@ -510,8 +552,7 @@
                         <h2 id="attn-heading" class="text-base font-semibold tracking-tight text-slate-900">Tasks needing attention</h2>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-2">
-                        {{-- Filter tabs --}}
+                    <div class="flex flex-wrap items-center gap-3">
                         <div class="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-sm" role="group" aria-label="Filter tasks">
                             @foreach ([['all', 'All', $attention->count()], ['overdue', 'Overdue', $attentionOverdue], ['approaching', 'Approaching', $attentionApproaching]] as [$fKey, $fName, $fCount])
                                 <button type="button"
@@ -728,6 +769,40 @@
                     </ul>
                 </section>
             </div>
+
+            {{-- Project health (needs $projectHealth) --}}
+            @if ($health && $health->isNotEmpty())
+                <section class="{{ $card }} p-6" aria-labelledby="health-heading">
+                    <div class="mb-5 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[22px] text-indigo-600" aria-hidden="true">monitoring</span>
+                            <h2 id="health-heading" class="text-base font-semibold tracking-tight text-slate-900">Project health</h2>
+                        </div>
+                        <span class="text-xs text-slate-500">Projects with the most overdue work first</span>
+                    </div>
+
+                    <ul class="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2 xl:grid-cols-3">
+                        @foreach ($health as $p)
+                            <li>
+                                <div class="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                                    @if ($canOpenProject && $p['id'])
+                                        <a href="{{ route('projects.show', $p['id']) }}" class="min-w-0 truncate rounded font-medium text-slate-900 hover:text-indigo-600 {{ $focus }}">{{ $p['name'] }}</a>
+                                    @else
+                                        <span class="min-w-0 truncate font-medium text-slate-900">{{ $p['name'] }}</span>
+                                    @endif
+                                    <span class="shrink-0 text-xs tabular-nums text-slate-500">{{ $p['done'] }}/{{ $p['total'] }} done</span>
+                                </div>
+                                <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100" role="img" aria-label="{{ $p['name'] }}: {{ $p['pct'] }} percent complete">
+                                    <div class="h-full rounded-full {{ $p['overdue'] > 0 ? 'bg-amber-500' : 'bg-emerald-500' }}" style="width: {{ $p['pct'] }}%"></div>
+                                </div>
+                                <p class="mt-1 text-xs {{ $p['overdue'] > 0 ? 'font-medium text-red-600' : 'text-slate-500' }}">
+                                    {{ $p['overdue'] > 0 ? $p['overdue'] . ' overdue' : 'No overdue tasks' }}
+                                </p>
+                            </li>
+                        @endforeach
+                    </ul>
+                </section>
+            @endif
 
             {{-- Admin quick links (only for users with those permissions) --}}
             @canany(['roles.view', 'roles.create'])
