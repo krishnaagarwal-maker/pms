@@ -48,8 +48,30 @@ class UserRoleController extends Controller
         ]);
 
         $selectedUser = User::findOrFail($validated['user_id']);
+
+        if ($selectedUser->is(auth()->user())) {
+            return back()->withErrors(['user_id' => 'You cannot change your own role from this screen.']);
+        }
+
         $selectedUser->syncRoles([$validated['role']]);
 
         return redirect()->route('projects.users.roles.index')->with('success', 'User role updated to ' . $validated['role'] . '.');
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        abort_unless(
+            $request->user()?->can('roles.delete'),
+            403,
+            'You do not have permission to delete users.'
+        );
+
+        if ($user->is($request->user())) {
+            return back()->withErrors(['user' => 'You cannot delete your own account from this screen.']);
+        }
+
+        $user->delete();
+
+        return redirect()->route('projects.users.roles.index')->with('success', 'User deleted successfully.');
     }
 }

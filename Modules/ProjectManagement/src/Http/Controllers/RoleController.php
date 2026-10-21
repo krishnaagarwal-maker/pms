@@ -11,11 +11,6 @@ use Spatie\Permission\PermissionRegistrar;
 
 class RoleController extends Controller
 {
-    private function protectedRoles(): array
-{
-    return ['manager', 'team_member'];
-}
-
     private function permissionGroups(): array
     {
         return [
@@ -158,15 +153,6 @@ class RoleController extends Controller
             ],
         ]);
 
-        if (in_array($role->name, $this->protectedRoles(), true)) {
-            abort_unless(
-                $request->user()->can('roles.assign-permissions'),
-                403
-            );
-
-            unset($validated['name']);
-        }
-
         $role->update(['name' => $validated['name'] ?? $role->name]);
         if (array_key_exists('permissions', $validated)) {
             $role->syncPermissions($validated['permissions']);
@@ -181,12 +167,6 @@ class RoleController extends Controller
 
     public function destroy(Role $role)
     {
-        abort_if(
-            in_array($role->name, $this->protectedRoles(), true),
-            403,
-            'Built-in roles cannot be deleted.'
-        );
-
         abort_if(
             $role->users()->exists(),
             422,

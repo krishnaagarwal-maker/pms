@@ -361,19 +361,23 @@
                             </dl>
 
                             <div class="flex items-center gap-2 pt-1">
-                                <a href="{{ route('projects.edit', $project) }}"
-                                   class="flex-1 rounded-lg bg-primary-fixed/60 px-3 py-2 text-center text-label-md font-medium text-primary transition-colors hover:bg-primary-fixed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                                    Edit
-                                </a>
-                                <form action="{{ route('projects.destroy', $project) }}" method="POST" class="flex-1"
-                                      onsubmit="return confirm(@js('Delete “' . $project->name . '”? This can’t be undone.'))">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                            class="w-full rounded-lg bg-error-container/60 px-3 py-2 text-label-md font-medium text-error transition-colors hover:bg-error-container focus:outline-none focus-visible:ring-2 focus-visible:ring-error">
-                                        Delete
-                                    </button>
-                                </form>
+                                @can('projects.edit')
+                                    <a href="{{ route('projects.edit', $project) }}"
+                                       class="flex-1 rounded-lg bg-primary-fixed/60 px-3 py-2 text-center text-label-md font-medium text-primary transition-colors hover:bg-primary-fixed focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                                        Edit
+                                    </a>
+                                @endcan
+                                @can('projects.delete')
+                                    <form action="{{ route('projects.destroy', $project) }}" method="POST" class="flex-1"
+                                          onsubmit="return confirm(@js('Delete “' . $project->name . '”? This can’t be undone.'))">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                                class="w-full rounded-lg bg-error-container/60 px-3 py-2 text-label-md font-medium text-error transition-colors hover:bg-error-container focus:outline-none focus-visible:ring-2 focus-visible:ring-error">
+                                            Delete
+                                        </button>
+                                    </form>
+                                @endcan
                             </div>
                         </li>
                     @endforeach

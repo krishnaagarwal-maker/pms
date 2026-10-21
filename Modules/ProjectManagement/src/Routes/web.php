@@ -52,6 +52,7 @@ Route::middleware(['web', 'auth'])
 
         Route::get('/users/roles', [UserRoleController::class, 'index'])->middleware('auth')->name('users.roles.index');
         Route::post('/users/roles', [UserRoleController::class, 'assign'])->middleware('auth')->name('users.roles.assign');
+        Route::delete('/users/{user}', [UserRoleController::class, 'destroy'])->middleware('auth')->name('users.destroy');
 
         Route::get('/{project}/tasks/create', [TaskController::class, 'create'])->middleware('permission:tasks.create')->name('tasks.create');
         Route::post('/{project}/tasks', [TaskController::class, 'store'])->middleware('permission:tasks.create')->name('tasks.store');

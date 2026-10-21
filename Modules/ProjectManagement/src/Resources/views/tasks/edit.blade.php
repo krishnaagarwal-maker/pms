@@ -636,17 +636,18 @@
                         @endisset
                     </div>
 
-                    {{-- RBAC-DELETE: wrap this form in @can('delete', $task) … @endcan once policies exist --}}
-                    <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST"
-                          onsubmit="return confirm(@js('Delete “' . $task->title . '”? This can’t be undone.'))">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit"
-                                class="flex items-center gap-1.5 rounded-lg px-space-xs py-1.5 text-label-md text-on-surface-variant transition-colors hover:text-error focus:outline-none focus-visible:ring-2 focus-visible:ring-error">
-                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
-                            Delete task
-                        </button>
-                    </form>
+                    @can('tasks.delete')
+                        <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST"
+                              onsubmit="return confirm(@js('Delete “' . $task->title . '”? This can’t be undone.'))">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                    class="flex items-center gap-1.5 rounded-lg px-space-xs py-1.5 text-label-md text-on-surface-variant transition-colors hover:text-error focus:outline-none focus-visible:ring-2 focus-visible:ring-error">
+                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+                                Delete task
+                            </button>
+                        </form>
+                    @endcan
                 </aside>
             </div>
 
@@ -661,12 +662,13 @@
                        class="rounded-xl bg-surface-container-low px-space-md py-2 text-label-md text-on-surface transition-all hover:bg-surface-container">
                         Cancel
                     </a>
-                    {{-- RBAC-SAVE: wrap in @can('update', $task) … @endcan once policies exist --}}
-                    <button type="submit" form="edit-task-form"
-                            class="flex items-center gap-2 rounded-xl bg-primary-container px-space-lg py-2 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
-                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">save</span>
-                        Save Changes
-                    </button>
+                        @can('tasks.edit')
+                        <button type="submit" form="edit-task-form"
+                                class="flex items-center gap-2 rounded-xl bg-primary-container px-space-lg py-2 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">save</span>
+                            Save Changes
+                        </button>
+                    @endcan
                 </div>
             </div>
         </div>

@@ -16,13 +16,13 @@
                         {{ __('Dashboard') }}
                     </x-nav-link>
                     @can('projects.view')
-                <x-nav-link
-                    :href="route('projects.index')"
-                    :active="request()->routeIs('projects.*')"
-                >
-                    {{ __('Projects') }}
-                </x-nav-link>
-            @endcan
+                        <x-nav-link
+                            :href="route('projects.index')"
+                            :active="request()->routeIs('projects.*')"
+                        >
+                            {{ __('Projects') }}
+                        </x-nav-link>
+                    @endcan
 
             @can('tasks.view')
                 <x-nav-link
@@ -88,13 +88,13 @@
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
                     @can('projects.view')
-            <x-responsive-nav-link
-                :href="route('projects.index')"
-                :active="request()->routeIs('projects.*')"
-            >
-                {{ __('Projects') }}
-            </x-responsive-nav-link>
-        @endcan
+                        <x-responsive-nav-link
+                            :href="route('projects.index')"
+                            :active="request()->routeIs('projects.*')"
+                        >
+                            {{ __('Projects') }}
+                        </x-responsive-nav-link>
+                    @endcan
 
         @can('tasks.view')
             <x-responsive-nav-link

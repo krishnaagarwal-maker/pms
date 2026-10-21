@@ -55,7 +55,7 @@
                                         </a>
                                     @endcan
                                     @can('roles.delete')
-                                        @if (! in_array($role->name, ['Manager', 'team_member'], true) && $role->users_count === 0)
+                                        @if ($role->users_count === 0)
                                             <form action="{{ route('projects.roles.destroy', $role) }}"
                                                   method="POST"
                                                   class="inline ms-3"

@@ -120,8 +120,8 @@ public function update(Request $request, Project $project, Task $task)
 
     $user = $request->user();
 
-    // Team Members and status-only roles cannot edit other task fields.
-    if ($user->hasRole('team_member') || !$user->can('tasks.edit')) {
+    // Users without the full tasks.edit permission can only update task status.
+    if (! $user->can('tasks.edit')) {
         abort_unless($user->can('tasks.update-status'), 403);
 
         abort_unless(

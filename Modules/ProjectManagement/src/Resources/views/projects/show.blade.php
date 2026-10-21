@@ -110,16 +110,20 @@
             </div>
 
             <div class="flex items-center gap-space-sm">
-                <a href="{{ route('projects.tasks.create', $project) }}"
-                   class="flex h-9 items-center gap-1.5 rounded-xl bg-surface-container-lowest px-space-md text-label-md text-on-surface shadow-sm transition-colors hover:bg-surface-container">
-                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
-                    New Task
-                </a>
-                <a href="{{ route('projects.edit', $project) }}"
-                   class="flex h-9 items-center gap-1.5 rounded-xl bg-primary-container px-space-md text-label-md text-on-primary shadow-sm transition-colors hover:bg-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
-                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
-                    Edit Project
-                </a>
+                @can('tasks.create')
+                    <a href="{{ route('projects.tasks.create', $project) }}"
+                       class="flex h-9 items-center gap-1.5 rounded-xl bg-surface-container-lowest px-space-md text-label-md text-on-surface shadow-sm transition-colors hover:bg-surface-container">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
+                        New Task
+                    </a>
+                @endcan
+                @can('projects.edit')
+                    <a href="{{ route('projects.edit', $project) }}"
+                       class="flex h-9 items-center gap-1.5 rounded-xl bg-primary-container px-space-md text-label-md text-on-primary shadow-sm transition-colors hover:bg-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
+                        Edit Project
+                    </a>
+                @endcan
             </div>
         </div>
 
@@ -421,21 +425,25 @@
                                                 <span class="sr-only">View</span>
                                                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">visibility</span>
                                             </a>
-                                            <a href="{{ route('projects.tasks.edit', [$project, $task]) }}" title="Edit Task"
-                                               class="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface">
-                                                <span class="sr-only">Edit</span>
-                                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
-                                            </a>
-                                            <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST" class="inline"
-                                                  onsubmit="return confirm('Delete this task?')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" title="Delete Task"
-                                                        class="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-error-container hover:text-error">
-                                                    <span class="sr-only">Delete</span>
-                                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
-                                                </button>
-                                            </form>
+                                            @can('tasks.edit')
+                                                <a href="{{ route('projects.tasks.edit', [$project, $task]) }}" title="Edit Task"
+                                                   class="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface">
+                                                    <span class="sr-only">Edit</span>
+                                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
+                                                </a>
+                                            @endcan
+                                            @can('tasks.delete')
+                                                <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST" class="inline"
+                                                      onsubmit="return confirm('Delete this task?')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" title="Delete Task"
+                                                            class="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-error-container hover:text-error">
+                                                        <span class="sr-only">Delete</span>
+                                                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+                                                    </button>
+                                                </form>
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>
@@ -470,16 +478,18 @@
                 Back to Projects
             </a>
 
-            <form action="{{ route('projects.destroy', $project) }}" method="POST"
-                  onsubmit="return confirm('Are you sure you want to delete this project? All its tasks will be removed.')">
-                @csrf
-                @method('DELETE')
-                <button type="submit"
-                        class="flex h-9 items-center gap-1.5 rounded-xl bg-error-container px-space-md text-label-md text-on-error-container shadow-sm transition-colors hover:bg-error hover:text-on-error focus:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2">
-                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
-                    Delete Project
-                </button>
-            </form>
+            @can('projects.delete')
+                <form action="{{ route('projects.destroy', $project) }}" method="POST"
+                      onsubmit="return confirm('Are you sure you want to delete this project? All its tasks will be removed.')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
+                            class="flex h-9 items-center gap-1.5 rounded-xl bg-error-container px-space-md text-label-md text-on-error-container shadow-sm transition-colors hover:bg-error hover:text-on-error focus:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+                        Delete Project
+                    </button>
+                </form>
+            @endcan
         </div>
     </div>
 </x-app-layout>

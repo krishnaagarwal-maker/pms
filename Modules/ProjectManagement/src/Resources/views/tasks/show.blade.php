@@ -113,12 +113,13 @@
                         <span class="material-symbols-outlined text-[18px]" aria-hidden="true" x-text="linkCopied ? 'check' : 'share'">share</span>
                         <span x-text="linkCopied ? 'Link copied' : 'Share'">Share</span>
                     </button>
-                    {{-- RBAC-EDIT: wrap in @can('update', $task) … @endcan once policies exist --}}
-                    <a href="{{ route('projects.tasks.edit', [$project, $task]) }}"
-                       class="flex items-center gap-1.5 rounded-xl bg-primary-container px-space-lg py-2 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
-                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
-                        Edit Task
-                    </a>
+                    @can('tasks.edit')
+                        <a href="{{ route('projects.tasks.edit', [$project, $task]) }}"
+                           class="flex items-center gap-1.5 rounded-xl bg-primary-container px-space-lg py-2 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
+                            Edit Task
+                        </a>
+                    @endcan
                 </div>
             </div>
 
@@ -389,24 +390,26 @@
                         <h2 class="mb-space-md text-title-md text-on-surface">Task Actions</h2>
 
                         <div class="flex flex-col gap-space-sm">
-                            {{-- RBAC-EDIT: wrap in @can('update', $task) … @endcan once policies exist --}}
-                            <a href="{{ route('projects.tasks.edit', [$project, $task]) }}"
-                               class="flex items-center justify-center gap-2 rounded-xl bg-primary-container px-space-md py-2.5 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
-                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
-                                Edit Full Specifications
-                            </a>
+                            @can('tasks.edit')
+                                <a href="{{ route('projects.tasks.edit', [$project, $task]) }}"
+                                   class="flex items-center justify-center gap-2 rounded-xl bg-primary-container px-space-md py-2.5 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
+                                    Edit Full Specifications
+                                </a>
+                            @endcan
 
-                            {{-- RBAC-DELETE: wrap in @can('delete', $task) … @endcan once policies exist --}}
-                            <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST"
-                                  onsubmit="return confirm(@js('Delete “' . $task->title . '”? This can’t be undone.'))">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit"
-                                        class="flex w-full items-center justify-center gap-2 rounded-xl bg-error-container/60 px-space-md py-2.5 text-label-md text-on-error-container transition-colors hover:bg-error hover:text-on-error focus:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2">
-                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
-                                    Delete Task…
-                                </button>
-                            </form>
+                            @can('tasks.delete')
+                                <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST"
+                                      onsubmit="return confirm(@js('Delete “' . $task->title . '”? This can’t be undone.'))">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit"
+                                            class="flex w-full items-center justify-center gap-2 rounded-xl bg-error-container/60 px-space-md py-2.5 text-label-md text-on-error-container transition-colors hover:bg-error hover:text-on-error focus:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2">
+                                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+                                        Delete Task…
+                                    </button>
+                                </form>
+                            @endcan
                         </div>
                     </section>
                 </aside>

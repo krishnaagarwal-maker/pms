@@ -103,23 +103,27 @@
                                                 View
                                             </a>
 
-                                            <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
-                                               class="ml-3 text-indigo-600 hover:underline">
-                                                Edit
-                                            </a>
+                                            @can('tasks.edit')
+                                                <a href="{{ route('projects.tasks.edit', [$task->project, $task]) }}"
+                                                   class="ml-3 text-indigo-600 hover:underline">
+                                                    Edit
+                                                </a>
+                                            @endcan
 
-                                            <form action="{{ route('projects.tasks.destroy', [$task->project, $task]) }}"
-                                                  method="POST"
-                                                  class="ml-3 inline"
-                                                  onsubmit="return confirm('Delete this task?')">
-                                                @csrf
-                                                @method('DELETE')
+                                            @can('tasks.delete')
+                                                <form action="{{ route('projects.tasks.destroy', [$task->project, $task]) }}"
+                                                      method="POST"
+                                                      class="ml-3 inline"
+                                                      onsubmit="return confirm('Delete this task?')">
+                                                    @csrf
+                                                    @method('DELETE')
 
-                                                <button type="submit"
-                                                        class="text-red-600 hover:underline">
-                                                    Delete
-                                                </button>
-                                            </form>
+                                                    <button type="submit"
+                                                            class="text-red-600 hover:underline">
+                                                        Delete
+                                                    </button>
+                                                </form>
+                                            @endcan
                                         </td>
                                     </tr>
                                 @endforeach
