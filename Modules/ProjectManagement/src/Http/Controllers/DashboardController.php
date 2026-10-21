@@ -51,6 +51,10 @@ class DashboardController extends Controller
         ? $user->notifications()->latest()->limit(6)->get()
         : collect();
 
+    $unreadNotificationCount = $user
+        ? $user->unreadNotifications()->count()
+        : 0;
+
     return view('dashboard', compact(
         'projectsCount',
         'totalTasks',
@@ -58,7 +62,15 @@ class DashboardController extends Controller
         'pendingTasks',
         'overdueTasks',
         'upcomingTasks',
-        'notifications'
+        'notifications',
+        'unreadNotificationCount'
     ));
 }
+
+    public function markAllAsRead(Request $request)
+    {
+        $request->user()?->unreadNotifications->markAsRead();
+
+        return redirect()->back()->with('success', 'All notifications marked as read.');
+    }
 }

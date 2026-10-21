@@ -657,19 +657,7 @@
                     <span class="h-2 w-2 rounded-full bg-tertiary" aria-hidden="true"></span>
                     Last saved {{ $task->updated_at->diffForHumans() }}
                 </span>
-                <div class="flex items-center gap-space-sm">
-                    <a href="{{ route('projects.show', $project) }}"
-                       class="rounded-xl bg-surface-container-low px-space-md py-2 text-label-md text-on-surface transition-all hover:bg-surface-container">
-                        Cancel
-                    </a>
-                        @can('tasks.edit')
-                        <button type="submit" form="edit-task-form"
-                                class="flex items-center gap-2 rounded-xl bg-primary-container px-space-lg py-2 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
-                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">save</span>
-                            Save Changes
-                        </button>
-                    @endcan
-                </div>
+               
             </div>
         </div>
     </div>

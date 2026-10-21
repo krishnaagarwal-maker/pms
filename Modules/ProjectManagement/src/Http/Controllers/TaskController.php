@@ -4,6 +4,7 @@ namespace Modules\ProjectManagement\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Notifications\SystemNotification;
 use App\Notifications\TaskAssignedNotification;
 use Illuminate\Http\Request;
 use Modules\ProjectManagement\Models\Project;
@@ -69,6 +70,12 @@ class TaskController extends Controller
             ...$validated,
             'created_by' => $request->user()->id,
         ]);
+
+        $this->notifyAllUsers(
+            'Task created: ' . $task->title,
+            route('projects.tasks.show', [$project, $task]),
+            'task_created'
+        );
 
         $this->sendAssignmentNotification($task, $request->user());
 
@@ -142,6 +149,12 @@ public function update(Request $request, Project $project, Task $task)
             'status' => $validated['status'],
         ]);
 
+        $this->notifyAllUsers(
+            'Task status updated: ' . $task->title,
+            route('projects.tasks.show', [$project, $task]),
+            'task_status_updated'
+        );
+
         return redirect()
             ->route('projects.tasks.show', [$project, $task])
             ->with('success', 'Task status updated successfully.');
@@ -161,6 +174,12 @@ public function update(Request $request, Project $project, Task $task)
     $previousAssigneeId = $task->assigned_to;
     $task->update($validated);
 
+    $this->notifyAllUsers(
+        'Task updated: ' . $task->title,
+        route('projects.tasks.show', [$project, $task]),
+        'task_updated'
+    );
+
     if ((int) ($task->assigned_to ?? 0) > 0 && (int) $previousAssigneeId !== (int) $task->assigned_to) {
         $this->sendAssignmentNotification($task, $user);
     }
@@ -169,6 +188,13 @@ public function update(Request $request, Project $project, Task $task)
         ->route('projects.tasks.show', [$project, $task])
         ->with('success', 'Task updated successfully.');
 }
+
+    private function notifyAllUsers(string $message, ?string $link = null, string $type = 'system'): void
+    {
+        User::query()->get()->each(function ($user) use ($message, $link, $type) {
+            $user->notify(new SystemNotification('System update', $message, $link, $type));
+        });
+    }
 
     private function sendAssignmentNotification(Task $task, User $assignedBy): void
     {
@@ -193,8 +219,14 @@ public function update(Request $request, Project $project, Task $task)
     public function destroy(Project $project, Task $task)
     {
         $projectId = $task->project_id;
+        $taskTitle = $task->title;
         $task->delete();
 
+        $this->notifyAllUsers(
+            'Task deleted: ' . $taskTitle,
+            route('projects.show', $projectId),
+            'task_deleted'
+        );
 
         return redirect()->route('projects.show', $projectId)->with('success', 'Task deleted successfully.');
     }

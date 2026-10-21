@@ -12,6 +12,11 @@ Route::get('/', function () {
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
+
+Route::post('/notifications/read-all', [DashboardController::class, 'markAllAsRead'])
+    ->middleware(['auth', 'verified'])
+    ->name('notifications.read-all');
+
 Route::get('/debug-email', function () {
     try {
         Mail::raw('Testing direct SMTP connection.', function ($message) {

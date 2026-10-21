@@ -3,6 +3,8 @@
 namespace Modules\ProjectManagement\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Notifications\SystemNotification;
 use Illuminate\Http\Request;
 use Modules\ProjectManagement\Models\Project; 
 
@@ -46,7 +48,13 @@ class ProjectController extends Controller
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
         ]);
 
-        Project::create($validated);
+        $project = Project::create($validated);
+
+        $this->notifyAllUsers(
+            'Project created: ' . $project->name,
+            route('projects.show', $project),
+            'project_created'
+        );
 
         return redirect()
             ->route('projects.index')
@@ -95,6 +103,12 @@ class ProjectController extends Controller
 
         $project->update($validated);
 
+        $this->notifyAllUsers(
+            'Project updated: ' . $project->name,
+            route('projects.show', $project),
+            'project_updated'
+        );
+
         return redirect()
             ->route('projects.index')
             ->with('success', 'Project updated successfully.'); 
@@ -108,6 +122,20 @@ class ProjectController extends Controller
      */
     public function destroy(Project $project)
     {
-        //
+        $projectName = $project->name;
+        $project->delete();
+
+        $this->notifyAllUsers(
+            'Project deleted: ' . $projectName,
+            route('projects.index'),
+            'project_deleted'
+        );
+    }
+
+    private function notifyAllUsers(string $message, ?string $link = null, string $type = 'system'): void
+    {
+        User::query()->get()->each(function ($user) use ($message, $link, $type) {
+            $user->notify(new SystemNotification('System update', $message, $link, $type));
+        });
     }
 }

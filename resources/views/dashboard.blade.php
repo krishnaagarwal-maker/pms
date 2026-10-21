@@ -192,9 +192,9 @@
                                 aria-haspopup="true"
                                 :aria-expanded="open">
                             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">notifications</span>
-                            @if(($notifications ?? collect())->whereNull('read_at')->count() > 0)
-                                <span class="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                                    {{ min(9, ($notifications ?? collect())->whereNull('read_at')->count()) }}
+                            @if(($unreadNotificationCount ?? 0) > 0)
+                                <span class="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+                                    {{ min(9, $unreadNotificationCount) }}
                                 </span>
                             @endif
                         </button>
@@ -212,9 +212,12 @@
                             <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
                                 <div class="text-sm font-semibold text-slate-800">Notifications</div>
                                 @if(($notifications ?? collect())->isNotEmpty())
-                                    <span class="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
-                                        {{ ($notifications ?? collect())->whereNull('read_at')->count() }} unread
-                                    </span>
+                                    <form action="{{ route('notifications.read-all') }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="text-[11px] font-semibold uppercase tracking-wide text-indigo-600 hover:text-indigo-700">
+                                            Read all
+                                        </button>
+                                    </form>
                                 @endif
                             </div>
 
@@ -230,7 +233,7 @@
                                         <div class="flex items-start gap-3">
                                             <span class="mt-1 inline-flex h-2.5 w-2.5 rounded-full {{ is_null($notification->read_at) ? 'bg-indigo-500' : 'bg-slate-300' }}"></span>
                                             <div class="min-w-0 flex-1">
-                                                <p class="text-sm font-medium text-slate-800 line-clamp-2">{{ $notificationMessage }}</p>
+                                                <p class="text-sm font-medium text-slate-800">{{ $notificationMessage }}</p>
                                                 <p class="mt-1 text-xs text-slate-500">{{ $notification->created_at?->diffForHumans() ?? 'just now' }}</p>
                                             </div>
                                         </div>
