@@ -7,12 +7,23 @@ use App\Notifications\TaskAssignedNotification;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\View;
 use Modules\ProjectManagement\Models\Project;
+use Modules\ProjectManagement\Database\Seeders\RolePermissionSeeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ProjectManagementViewsTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(RolePermissionSeeder::class);
+    }
+
     public function test_project_management_views_are_registered_with_the_correct_namespace(): void
     {
         $this->assertTrue(View::exists('ProjectManagement::projects.index'));
@@ -94,7 +105,7 @@ class ProjectManagementViewsTest extends TestCase
     public function test_project_and_task_detail_pages_show_assignee_names(): void
     {
         $viewer = User::factory()->create();
-        $viewer->givePermissionTo(['projects.view', 'tasks.view']);
+        $viewer->givePermissionTo(['projects.view', 'tasks.view', 'tasks.assign']);
 
         $assignee = User::factory()->create(['name' => 'Jane Assignee']);
         $project = Project::create([
@@ -129,7 +140,7 @@ class ProjectManagementViewsTest extends TestCase
         Notification::fake();
 
         $manager = User::factory()->create();
-        $manager->givePermissionTo('tasks.edit');
+        $manager->givePermissionTo(['tasks.edit', 'tasks.assign']);
 
         $assignee = User::factory()->create(['name' => 'Assigned User']);
 

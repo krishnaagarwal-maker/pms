@@ -18,7 +18,13 @@ class ProjectController extends Controller
      */
     public function index(Request $request)
     {
-        $projects = Project::visibleTo($request->user())->latest()->paginate(10);
+        $user = $request->user();
+        $projects = Project::visibleTo($user)
+            ->with(['tasks' => function ($query) use ($user) {
+                $query->visibleTo($user)->with('assignee');
+            }])
+            ->latest()
+            ->paginate(12);
 
         return view('ProjectManagement::projects.index', compact('projects'));
     }
@@ -142,6 +148,10 @@ class ProjectController extends Controller
             route('projects.index'),
             'project_deleted'
         );
+
+        return redirect()
+            ->route('projects.index')
+            ->with('success', 'Project "' . $projectName . '" deleted successfully.');
     }
 
     /** Project-wide notifications are reserved for users with assignment authority. */

@@ -70,7 +70,7 @@ public function index(Request $request)
             $query->orderByRaw('due_date IS NULL')
                 ->orderByDesc('due_date');
             break;
-
+            
         case 'priority':
             $query->orderByRaw(
                 "CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END"
