@@ -85,6 +85,38 @@
 @endphp
 
 <x-app-layout>
+    <style>
+        @keyframes projects-index-enter {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes projects-index-fill {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+
+        .projects-index-enter {
+            animation: projects-index-enter .55s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .projects-index-row {
+            animation: projects-index-enter .42s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .projects-index-fill {
+            transform: scaleX(0);
+            transform-origin: left center;
+            animation: projects-index-fill .7s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .projects-index-enter,
+            .projects-index-row,
+            .projects-index-fill { animation: none !important; transform: none !important; }
+        }
+    </style>
+
     <div class="mx-auto w-full max-w-7xl space-y-6 px-6 py-8 lg:px-12"
          x-data="{
              filter: 'All',
@@ -116,9 +148,11 @@
         @endif
 
         {{-- Page header --}}
-        <div class="flex flex-col gap-4 pb-1 pt-2 sm:flex-row sm:items-center sm:justify-between">
+        <div class="projects-index-enter flex flex-col gap-4 pb-1 pt-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h1 class="text-headline-md font-bold tracking-tight text-on-surface">Projects</h1>
+                <h1 class="text-headline-md font-bold tracking-tight text-on-surface">
+                    All Projects
+                </h1>
                 <p class="mt-1 text-body-sm text-on-surface-variant">
                     @if ($projects->total() > 0)
                         {{ number_format($projects->total()) }} {{ Str::plural('project', $projects->total()) }} in total
@@ -141,7 +175,7 @@
 
         @if ($projects->isEmpty())
             {{-- Empty state --}}
-            <div class="rounded-xl border-2 border-dashed border-primary-fixed-dim bg-surface-container-lowest px-6 py-16 text-center">
+            <div class="projects-index-enter rounded-xl border-2 border-dashed border-primary-fixed-dim bg-surface-container-lowest px-6 py-16 text-center" style="animation-delay: 100ms">
                 <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-container to-secondary-container text-on-primary shadow-lg shadow-primary-container/30">
                     <span class="material-symbols-outlined text-[28px]">folder_open</span>
                 </div>
@@ -158,7 +192,7 @@
             {{-- Status summary --}}
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 @foreach ($stats as [$label, $count, $hint, $hintIcon, $hintColor, $iconBox, $icon])
-                    <div class="flex items-center justify-between rounded-xl bg-surface-container-lowest p-5 shadow-sm transition-shadow hover:shadow">
+                    <div class="projects-index-enter flex items-center justify-between rounded-xl bg-surface-container-lowest p-5 shadow-sm transition-shadow hover:shadow" style="animation-delay: {{ 90 + ($loop->index * 70) }}ms">
                         <div class="space-y-1">
                             <p class="text-label-sm font-semibold uppercase tracking-wider text-on-surface-variant">{{ $label }}</p>
                             <div class="flex items-baseline gap-2">
@@ -179,7 +213,7 @@
             </div>
 
             {{-- Filter & search toolbar (filters the projects on this page) --}}
-            <div class="flex flex-col justify-between gap-3 rounded-xl bg-surface-container-lowest p-3 shadow-sm md:flex-row md:items-center">
+            <div class="projects-index-enter flex flex-col justify-between gap-3 rounded-xl bg-surface-container-lowest p-3 shadow-sm md:flex-row md:items-center" style="animation-delay: 300ms">
                 <div class="relative w-full max-w-md flex-1">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">search</span>
                     <input type="text" x-model="q" placeholder="Search projects by name or description..."
@@ -199,7 +233,7 @@
                 </div>
             </div>
 
-            <div class="overflow-hidden rounded-xl bg-surface-container-lowest shadow-sm">
+            <div class="projects-index-enter overflow-hidden rounded-xl bg-surface-container-lowest shadow-sm" style="animation-delay: 360ms">
 
                 {{-- Desktop table --}}
                 <div class="hidden overflow-x-auto md:block">
@@ -225,7 +259,8 @@
                                 @endphp
 
                                 <tr x-show="matches(@js($s['label']), @js($haystack))"
-                                    class="group transition-colors hover:bg-surface-container-low/50 {{ $s['label'] === 'Ended' ? 'opacity-90' : '' }}">
+                                    class="projects-index-row group transition-colors hover:bg-surface-container-low/50 {{ $s['label'] === 'Ended' ? 'opacity-90' : '' }}"
+                                    style="animation-delay: {{ 430 + ($loop->index * 60) }}ms">
                                     <td class="py-4 pl-6 pr-4">
                                         <div class="flex items-start gap-3">
                                             <div class="w-1.5 shrink-0 self-stretch rounded-full {{ $s['accent'] }}"></div>
@@ -253,7 +288,7 @@
                                         @if (! is_null($t))
                                             <div class="flex items-center gap-3">
                                                 <div class="h-2 w-24 overflow-hidden rounded-full bg-surface-container-high">
-                                                    <div class="h-full rounded-full {{ $s['bar'] }}" style="width: {{ $t }}%"></div>
+                                                    <div class="projects-index-fill h-full rounded-full {{ $s['bar'] }}" style="width: {{ $t }}%; animation-delay: {{ 520 + ($loop->index * 60) }}ms"></div>
                                                 </div>
                                                 <span class="text-code-sm font-medium tabular-nums text-on-surface">{{ $t }}%</span>
                                             </div>
@@ -320,7 +355,7 @@
                             $haystack = Str::lower($project->name . ' ' . $project->description);
                         @endphp
 
-                        <li x-show="matches(@js($s['label']), @js($haystack))" class="space-y-3 p-4">
+                        <li x-show="matches(@js($s['label']), @js($haystack))" class="projects-index-row space-y-3 p-4" style="animation-delay: {{ 430 + ($loop->index * 60) }}ms">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="flex items-start gap-3">
                                     <div class="w-1.5 shrink-0 self-stretch rounded-full {{ $s['accent'] }}"></div>
@@ -341,7 +376,7 @@
                             @if (! is_null($t))
                                 <div class="flex items-center gap-3">
                                     <div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-container-high">
-                                        <div class="h-full rounded-full {{ $s['bar'] }}" style="width: {{ $t }}%"></div>
+                                        <div class="projects-index-fill h-full rounded-full {{ $s['bar'] }}" style="width: {{ $t }}%; animation-delay: {{ 520 + ($loop->index * 60) }}ms"></div>
                                     </div>
                                     <span class="text-code-sm tabular-nums text-on-surface">{{ $t }}%</span>
                                 </div>

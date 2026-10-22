@@ -27,14 +27,88 @@ class TaskController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index(Request $request)
-    {
-        $tasks = Task::visibleTo($request->user())
-        ->with('project')
-        ->latest()
-        ->paginate(10);
-        return view('ProjectManagement::tasks.index', compact('tasks'));
+    
+public function index(Request $request)
+{
+    $allowedStatuses = ['pending', 'in_progress', 'completed'];
+    $allowedPriorities = ['low', 'medium', 'high'];
+    $allowedSorts = ['due_asc', 'due_desc', 'priority', 'updated'];
+
+    $filters = $request->validate([
+        'q' => ['nullable', 'string', 'max:255'],
+        'status' => ['nullable', 'in:pending,in_progress,completed,overdue'],
+        'priority' => ['nullable', 'in:low,medium,high'],
+        'sort' => ['nullable', 'in:due_asc,due_desc,priority,updated'],
+        'page' => ['nullable', 'integer', 'min:1'],
+    ]);
+
+    $query = Task::visibleTo($request->user())
+        ->with('project');
+
+    if (! empty($filters['q'])) {
+        $term = $filters['q'];
+
+        $query->where('title', 'like', '%' . $term . '%');
     }
+
+    if (! empty($filters['priority'])) {
+        $query->where('priority', $filters['priority']);
+    }
+
+    if (($filters['status'] ?? null) === 'overdue') {
+        $query->whereNot('status', 'completed')
+            ->whereNotNull('due_date')
+            ->whereDate('due_date', '<', today());
+    } elseif (in_array($filters['status'] ?? null, $allowedStatuses, true)) {
+        $query->where('status', $filters['status']);
+    }
+
+    $sort = $filters['sort'] ?? 'due_asc';
+
+    switch ($sort) {
+        case 'due_desc':
+            $query->orderByRaw('due_date IS NULL')
+                ->orderByDesc('due_date');
+            break;
+
+        case 'priority':
+            $query->orderByRaw(
+                "CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END"
+            );
+            break;
+
+        case 'updated':
+            $query->latest('updated_at');
+            break;
+
+        default:
+            $query->orderByRaw('due_date IS NULL')
+                ->orderBy('due_date');
+            break;
+    }
+
+    $tasks = $query->paginate(15)->withQueryString();
+
+    // Counts use the same visibility rules, but are independent of active filters.
+    $countQuery = Task::visibleTo($request->user());
+
+    $statusCounts = [
+        'all' => (clone $countQuery)->count(),
+        'pending' => (clone $countQuery)->where('status', 'pending')->count(),
+        'in_progress' => (clone $countQuery)->where('status', 'in_progress')->count(),
+        'completed' => (clone $countQuery)->where('status', 'completed')->count(),
+        'overdue' => (clone $countQuery)
+            ->whereNot('status', 'completed')
+            ->whereNotNull('due_date')
+            ->whereDate('due_date', '<', today())
+            ->count(),
+    ];
+
+    return view('ProjectManagement::tasks.index', compact(
+        'tasks',
+        'statusCounts'
+    ));
+}
 
     /**
      * Show the form for creating a new resource.
