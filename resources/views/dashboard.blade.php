@@ -185,6 +185,94 @@
 <x-app-layout>
     <style>
         [x-cloak] { display: none !important; }
+
+        @keyframes dash-enter {
+            0% {
+                opacity: 0;
+                transform: translateY(12px) scale(0.985);
+            }
+            60% {
+                opacity: 1;
+                transform: translateY(-2px) scale(1.004);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes dash-refresh-sheen {
+            0% {
+                box-shadow: inset 0 0 0 rgba(255,255,255,0), 0 0 0 rgba(255,255,255,0);
+            }
+            50% {
+                box-shadow: inset 0 1px 0 rgba(255,255,255,0.72), 0 0 0 3px rgba(253, 186, 116, 0.10);
+            }
+            100% {
+                box-shadow: inset 0 1px 0 rgba(255,255,255,0.72), 0 0 0 rgba(255,255,255,0);
+            }
+        }
+
+        @keyframes dash-progress-fill {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+
+        @keyframes dash-donut-draw {
+            from { stroke-dasharray: 0 100; }
+            to { stroke-dasharray: var(--dash-segment) var(--dash-gap); }
+        }
+
+        @keyframes dash-status-reveal {
+            from { opacity: 0; transform: translateX(-8px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .task-attention-card {
+            background: linear-gradient(180deg, rgba(254, 242, 242, 0.92), rgba(255, 255, 255, 0.96));
+            border-color: rgba(254, 202, 202, 0.95);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 1px 2px rgba(15, 23, 42, 0.04);
+            animation: dash-refresh-sheen 2.4s ease-in-out 1, dash-enter .65s ease-out both;
+        }
+
+        .dash-animate-card {
+            animation: dash-enter .7s cubic-bezier(.2,.8,.2,1) both;
+        }
+
+        .dash-animate-card.delay-1 { animation-delay: .06s; }
+        .dash-animate-card.delay-2 { animation-delay: .12s; }
+        .dash-animate-card.delay-3 { animation-delay: .18s; }
+        .dash-animate-card.delay-4 { animation-delay: .24s; }
+        .dash-animate-card.delay-5 { animation-delay: .30s; }
+
+        .dash-progress-segment,
+        .dash-week-fill {
+            transform: scaleX(0);
+            transform-origin: left center;
+            animation: dash-progress-fill .7s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .dash-donut-segment {
+            animation: dash-donut-draw .85s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .dash-status-center,
+        .dash-status-row {
+            animation: dash-status-reveal .45s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .dash-motion a,
+        .dash-motion button {
+            text-decoration: none !important;
+        }
+
+        .dash-motion a:hover,
+        .dash-motion a:focus-visible,
+        .dash-motion button:hover,
+        .dash-motion button:focus-visible {
+            text-decoration: none !important;
+        }
+
         @media (prefers-reduced-motion: reduce) {
             .dash-motion * { transition: none !important; animation: none !important; }
         }
@@ -306,7 +394,7 @@
             {{-- Focus + week outlook --}}
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
-                <section class="{{ $card }} overflow-hidden border-l-4 {{ $focusAccent }} lg:col-span-2" aria-labelledby="focus-heading">
+                <section class="{{ $card }} dash-animate-card delay-1 overflow-hidden border-l-4 {{ $focusAccent }} lg:col-span-2" aria-labelledby="focus-heading">
                     <div class="p-6">
                         <h2 id="focus-heading" class="text-sm font-semibold text-zinc-500">Start here</h2>
 
@@ -364,7 +452,9 @@
                         <div class="flex h-2 w-full overflow-hidden rounded-full bg-zinc-200" role="img" aria-label="{{ $chartLabel }}">
                             @foreach ($segments as [$sLabel, $sCount, $sStroke, $sBg])
                                 @if ($total > 0 && $sCount > 0)
-                                    <div class="h-full {{ $sBg }}" style="width: {{ round(($sCount / $total) * 100, 2) }}%" title="{{ $sLabel }}: {{ $sCount }}"></div>
+                                    <div class="dash-progress-segment h-full {{ $sBg }}"
+                                         style="width: {{ round(($sCount / $total) * 100, 2) }}%; animation-delay: {{ 180 + ($loop->index * 110) }}ms"
+                                         title="{{ $sLabel }}: {{ $sCount }}"></div>
                                 @endif
                             @endforeach
                         </div>
@@ -372,7 +462,7 @@
                 </section>
 
                 {{-- Next 7 days --}}
-                <section class="{{ $card }} p-6" aria-labelledby="week-heading">
+                <section class="{{ $card }} dash-animate-card delay-2 p-6" aria-labelledby="week-heading">
                     <div class="mb-4 flex items-center justify-between">
                         <h2 id="week-heading" class="text-base font-semibold tracking-tight text-zinc-900">Next 7 days</h2>
                         <span class="text-xs text-zinc-500">{{ $weekTotal }} due</span>
@@ -390,8 +480,8 @@
                             <li class="flex items-center gap-3 text-sm">
                                 <span class="w-24 shrink-0 {{ $loop->first ? 'font-semibold text-zinc-900' : ($d['weekend'] ? 'text-zinc-400' : 'text-zinc-600') }}">{{ $d['label'] }}</span>
                                 <span class="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
-                                    <span class="block h-full rounded-full {{ $loop->first ? 'bg-zinc-900' : 'bg-zinc-400' }}"
-                                          style="width: {{ $d['count'] > 0 ? max(8, round(($d['count'] / $weekMax) * 100)) : 0 }}%"></span>
+                                    <span class="dash-week-fill block h-full rounded-full {{ $loop->first ? 'bg-zinc-900' : 'bg-zinc-400' }}"
+                                          style="width: {{ $d['count'] > 0 ? max(8, round(($d['count'] / $weekMax) * 100)) : 0 }}%; animation-delay: {{ 250 + ($loop->index * 70) }}ms"></span>
                                 </span>
                                 <span class="w-5 text-right text-xs font-semibold tabular-nums {{ $d['count'] ? 'text-zinc-900' : 'text-zinc-300' }}">{{ $d['count'] }}<span class="sr-only"> {{ Str::plural('task', $d['count']) }} due</span></span>
                             </li>
@@ -409,7 +499,7 @@
                     @can($permission)
                         @php $alert = $label === 'Overdue' && $count > 0; @endphp
                         <a href="{{ route($routeName) }}"
-                           class="group rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgba(24,24,27,0.05)] transition hover:shadow-md {{ $focus }} {{ $alert ? 'border-red-200 hover:border-red-300' : 'border-zinc-200 hover:border-zinc-400' }}">
+                           class="dash-animate-card delay-{{ min($loop->iteration, 5) }} group rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgba(24,24,27,0.05)] transition hover:shadow-md {{ $focus }} {{ $alert ? 'border-red-200 hover:border-red-300' : 'border-zinc-200 hover:border-zinc-400' }}">
                             <div class="flex items-start justify-between">
                                 <p class="text-[13px] font-medium text-zinc-600">{{ $label }}</p>
                                 <span class="flex h-8 w-8 items-center justify-center rounded-md {{ $iconBox }}">
@@ -427,7 +517,7 @@
             <div class="grid grid-cols-1 gap-6 {{ $priority ? 'lg:grid-cols-2' : '' }}">
 
                 {{-- Task status distribution --}}
-                <section class="{{ $card }} p-6" aria-labelledby="dist-heading">
+                <section class="{{ $card }} dash-animate-card delay-4 p-6" aria-labelledby="dist-heading">
                     <div class="mb-5 flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-[20px] text-zinc-700" aria-hidden="true">donut_large</span>
@@ -444,16 +534,17 @@
                                 @foreach ($segments as [$sLabel, $sCount, $stroke])
                                     @php $pct = $total > 0 ? ($sCount / $total) * 100 : 0; @endphp
                                     @if ($pct > 0)
-                                        <circle cx="18" cy="18" r="15.9155" fill="none" class="{{ $stroke }} transition-opacity hover:opacity-75" stroke-width="4"
+                                        <circle cx="18" cy="18" r="15.9155" fill="none" class="dash-donut-segment {{ $stroke }} transition-opacity hover:opacity-75" stroke-width="4"
                                                 stroke-dasharray="{{ round($pct, 2) }} {{ round(100 - $pct, 2) }}"
-                                                stroke-dashoffset="{{ round(-$acc, 2) }}">
+                                                stroke-dashoffset="{{ round(-$acc, 2) }}"
+                                                style="--dash-segment: {{ round($pct, 2) }}; --dash-gap: {{ round(100 - $pct, 2) }}; animation-delay: {{ 180 + ($loop->index * 130) }}ms">
                                             <title>{{ $sLabel }}: {{ $sCount }} ({{ number_format($pct, 1) }}%)</title>
                                         </circle>
                                         @php $acc += $pct; @endphp
                                     @endif
                                 @endforeach
                             </svg>
-                            <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                            <div class="dash-status-center pointer-events-none absolute inset-0 flex flex-col items-center justify-center" style="animation-delay: 650ms">
                                 <span class="text-3xl font-bold tabular-nums text-zinc-900">{{ $resolvedPct }}%</span>
                                 <span class="text-xs font-medium text-zinc-500">Resolved</span>
                             </div>
@@ -462,7 +553,7 @@
                         <ul class="w-full flex-1 space-y-2.5">
                             @foreach ($segments as [$sLabel, $sCount, $stroke, $dot])
                                 @php $isOverdueRow = str_starts_with($sLabel, 'Overdue') && $sCount > 0; @endphp
-                                <li class="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 {{ $isOverdueRow ? 'bg-red-50' : '' }}">
+                                <li class="dash-status-row flex items-center justify-between gap-3 rounded-md px-2 py-1.5 {{ $isOverdueRow ? 'bg-red-50' : '' }}" style="animation-delay: {{ 260 + ($loop->index * 90) }}ms">
                                     <span class="flex min-w-0 items-center gap-2 text-sm {{ $isOverdueRow ? 'font-medium text-red-700' : 'text-zinc-700' }}">
                                         <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $dot }}"></span>
                                         <span class="truncate">{{ $sLabel }}</span>
@@ -523,7 +614,7 @@
             </div>
 
             {{-- Tasks needing attention --}}
-            <section class="{{ $card }} overflow-hidden" x-data="{ filter: 'all' }" aria-labelledby="attn-heading">
+            <section class="{{ $card }} task-attention-card overflow-hidden" x-data="{ filter: 'all' }" aria-labelledby="attn-heading">
                 <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
                     <div class="flex flex-wrap items-center gap-3">
                         <span class="material-symbols-outlined text-[22px] {{ $attentionOverdue > 0 ? 'text-red-600' : 'text-zinc-700' }}" aria-hidden="true">notifications_active</span>

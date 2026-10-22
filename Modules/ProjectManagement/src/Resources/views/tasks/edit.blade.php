@@ -245,7 +245,7 @@
                                 <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">tune</span>
                                 <h2 class="text-title-md text-on-surface">Planning &amp; Attributes</h2>
                             </div>
-                            <span class="text-label-sm text-on-surface-variant">Core task metadata</span>
+                            <span class="text-label-sm text-on-surface-variant">Core task</span>
                         </div>
 
                         <div class="grid grid-cols-1 gap-space-lg md:grid-cols-2">
@@ -401,67 +401,6 @@
                         </div>
                     @endisset
 
-                    {{--
-                    |----------------------------------------------------------------------
-                    | RBAC-ROLES: Role & effective permissions (COMMENTED OUT)
-                    |----------------------------------------------------------------------
-                    | Needs $roles (with permissions), $permissions, nullable role_id on
-                    | tasks, and a task_permission pivot if per-task overrides are saved.
-                    | Default roles: manager, team member. Admins can add custom roles.
-                    |
-                    | To enable: remove the Blade comment markers around this block.
-                    |
-                    | @can('tasks.assign')
-                    | <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm"
-                    |      x-data="{
-                    |          role: @js((string) old('role_id', $task->role_id ?? '')),
-                    |          rolePermissions: @js($roles->mapWithKeys(fn ($r) => [(string) $r->id => $r->permissions->pluck('id')])),
-                    |          selected: @js(old('permissions', $task->permissions->pluck('id') ?? [])),
-                    |          pickRole(id) { this.role = String(id); this.selected = [...(this.rolePermissions[id] ?? [])]; }
-                    |      }">
-                    |     <div class="mb-space-md flex items-center justify-between">
-                    |         <div class="flex items-center gap-space-xs">
-                    |             <span class="material-symbols-outlined text-[22px] text-primary">verified_user</span>
-                    |             <h2 class="text-title-md text-on-surface">Role & Governance</h2>
-                    |         </div>
-                    |         @can('roles.manage')
-                    |             <a href="{{ route('roles.create') }}" class="text-label-sm text-primary hover:underline">+ Create custom role</a>
-                    |         @endcan
-                    |     </div>
-                    |
-                    |     <span class="mb-space-xs block text-label-md text-on-surface">Assigned Task Scope Role</span>
-                    |     <div class="mb-space-md grid grid-cols-1 gap-space-sm md:grid-cols-3">
-                    |         @foreach ($roles as $role)
-                    |             <label class="cursor-pointer">
-                    |                 <input type="radio" name="role_id" value="{{ $role->id }}" class="peer sr-only"
-                    |                        @click="pickRole({{ $role->id }})" @checked(old('role_id', $task->role_id) == $role->id)>
-                    |                 <span class="block rounded-xl bg-surface-container-low p-space-md transition-all peer-checked:bg-primary-fixed/50 peer-checked:shadow-[0_0_0_2px_rgba(79,70,229,1)]">
-                    |                     <span class="flex items-center justify-between">
-                    |                         <span class="text-title-sm text-on-surface">{{ $role->name }}</span>
-                    |                         <span class="font-code-sm text-[10px] text-primary">{{ $role->permissions->count() }}/{{ $permissions->count() }} perms</span>
-                    |                     </span>
-                    |                     <span class="mt-1 block text-body-sm text-on-surface-variant">{{ $role->description }}</span>
-                    |                 </span>
-                    |             </label>
-                    |         @endforeach
-                    |     </div>
-                    |
-                    |     <span class="mb-space-xs block text-label-md text-on-surface">Effective Permissions (task scope)</span>
-                    |     <div class="grid grid-cols-1 gap-space-sm md:grid-cols-2">
-                    |         @foreach ($permissions as $permission)
-                    |             <label class="flex items-center justify-between gap-3 rounded-xl bg-surface-container-low p-space-sm">
-                    |                 <span class="text-title-sm text-on-surface">{{ $permission->label }}</span>
-                    |                 <input type="checkbox" name="permissions[]" value="{{ $permission->id }}"
-                    |                        :checked="selected.includes({{ $permission->id }})"
-                    |                        class="h-4 w-4 rounded border-outline-variant text-primary-container focus:ring-primary-container/30">
-                    |             </label>
-                    |         @endforeach
-                    |     </div>
-                    |
-                    |     @error('role_id') <p class="mt-1.5 text-body-sm text-error">{{ $message }}</p> @enderror
-                    | </div>
-                    | @endcan
-                    --}}
                 </form>
 
                 {{-- RIGHT: preview, activity, delete --}}

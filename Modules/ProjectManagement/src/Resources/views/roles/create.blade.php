@@ -24,7 +24,7 @@
                 <x-input-error class="mt-2" :messages="$errors->get('permissions')" />
                 <x-input-error class="mt-2" :messages="$errors->get('permissions.*')" />
 
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-4">   
                     <x-primary-button>{{ __('Save') }}</x-primary-button>
                     <a href="{{ route('projects.roles.index') }}" class="text-sm text-gray-600 hover:underline">
                         {{ __('Cancel') }}

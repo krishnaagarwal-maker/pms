@@ -9,6 +9,8 @@ export default {
         './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
         './storage/framework/views/*.php',
         './resources/views/**/*.blade.php',
+        './resources/js/**/*.vue',
+        './Modules/ProjectManagement/resources/views/projects/show.php',
         './resources/js/**/*.js',
         // IMPORTANT: your project view lives in a module, so scan it too
         './Modules/**/resources/views/**/*.blade.php',
