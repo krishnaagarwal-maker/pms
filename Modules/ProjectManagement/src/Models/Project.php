@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\ProjectManagement\Models\Task;
+use Illuminate\Database\Eloquent\Builder;
+use App\Models\User;
 
 class Project extends Model
 {
@@ -54,5 +56,13 @@ class Project extends Model
     public function tasks()
     {
         return $this->hasMany(Task::class);
+    }
+
+    /** Projects are visible to members only when they have an assigned task in them. */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return $user->can('tasks.assign')
+            ? $query
+            : $query->whereHas('tasks', fn (Builder $tasks) => $tasks->where('assigned_to', $user->id));
     }
 }

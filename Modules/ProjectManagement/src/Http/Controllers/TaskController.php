@@ -27,9 +27,10 @@ class TaskController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        $tasks = Task::with('project')
+        $tasks = Task::visibleTo($request->user())
+        ->with('project')
         ->latest()
         ->paginate(10);
         return view('ProjectManagement::tasks.index', compact('tasks'));
@@ -71,7 +72,8 @@ class TaskController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        $this->notifyAllUsers(
+        $this->notifyTaskRecipients(
+            $task,
             'Task created: ' . $task->title,
             route('projects.tasks.show', [$project, $task]),
             'task_created'
@@ -105,6 +107,7 @@ class TaskController extends Controller
         // $task->load('project');
 
         $task = $project->tasks()
+        ->visibleTo(request()->user())
         ->with('assignee')
         ->findOrFail($task->id);
 
@@ -116,7 +119,7 @@ class TaskController extends Controller
      */
     public function edit(Project $project, Task $task)
     {
-        $task = $project->tasks()->findOrFail($task->id);
+        $task = $project->tasks()->visibleTo(request()->user())->findOrFail($task->id);
         $users = \App\Models\User::orderBy('name')->get();
     
         return view('ProjectManagement::tasks.edit', compact('project', 'task', 'users'));
@@ -128,7 +131,7 @@ class TaskController extends Controller
   
 public function update(Request $request, Project $project, Task $task)
 {
-    $task = $project->tasks()->findOrFail($task->id);
+    $task = $project->tasks()->visibleTo($request->user())->findOrFail($task->id);
 
     $user = $request->user();
 
@@ -149,7 +152,8 @@ public function update(Request $request, Project $project, Task $task)
             'status' => $validated['status'],
         ]);
 
-        $this->notifyAllUsers(
+        $this->notifyTaskRecipients(
+            $task,
             'Task status updated: ' . $task->title,
             route('projects.tasks.show', [$project, $task]),
             'task_status_updated'
@@ -174,7 +178,8 @@ public function update(Request $request, Project $project, Task $task)
     $previousAssigneeId = $task->assigned_to;
     $task->update($validated);
 
-    $this->notifyAllUsers(
+    $this->notifyTaskRecipients(
+        $task,
         'Task updated: ' . $task->title,
         route('projects.tasks.show', [$project, $task]),
         'task_updated'
@@ -189,9 +194,13 @@ public function update(Request $request, Project $project, Task $task)
         ->with('success', 'Task updated successfully.');
 }
 
-    private function notifyAllUsers(string $message, ?string $link = null, string $type = 'system'): void
+    /** Notify the task assignee and assignment-capable users, never unrelated members. */
+    private function notifyTaskRecipients(Task $task, string $message, ?string $link = null, string $type = 'system'): void
     {
-        User::query()->get()->each(function ($user) use ($message, $link, $type) {
+        User::query()->get()
+            ->filter(fn (User $user) => (int) $user->id === (int) $task->assigned_to || $user->can('tasks.assign'))
+            ->unique('id')
+            ->each(function (User $user) use ($message, $link, $type) {
             $user->notify(new SystemNotification('System update', $message, $link, $type));
         });
     }
@@ -218,11 +227,14 @@ public function update(Request $request, Project $project, Task $task)
      */
     public function destroy(Project $project, Task $task)
     {
+        $task = $project->tasks()->visibleTo(request()->user())->findOrFail($task->id);
+
         $projectId = $task->project_id;
         $taskTitle = $task->title;
         $task->delete();
 
-        $this->notifyAllUsers(
+        $this->notifyTaskRecipients(
+            $task,
             'Task deleted: ' . $taskTitle,
             route('projects.show', $projectId),
             'task_deleted'

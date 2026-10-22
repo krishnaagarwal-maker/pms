@@ -78,6 +78,9 @@
                                     $permCount = $permNames->count();
                                     $shown     = $permNames->take($visibleChips);
                                     $hidden    = $permNames->slice($visibleChips);
+                                    $builtInKey = strtolower(str_replace([' ', '-'], '_', $role->name));
+                                    $isBuiltIn = in_array($builtInKey, ['manager', 'team_member'], true);
+                                    $roleLabel = $builtInKey === 'team_member' ? 'Team member' : $role->name;
                                 @endphp
                                 <tr class="align-top transition-colors hover:bg-zinc-50" x-data="{ expanded: false }">
                                     {{-- Role --}}
@@ -86,7 +89,10 @@
                                             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-sm font-bold uppercase text-white" aria-hidden="true">
                                                 {{ Str::substr($role->name, 0, 1) }}
                                             </span>
-                                            <span class="min-w-0 truncate text-sm font-semibold text-zinc-900">{{ $role->name }}</span>
+                                            <span class="min-w-0 truncate text-sm font-semibold text-zinc-900">{{ $roleLabel }}</span>
+                                            @if ($isBuiltIn)
+                                                <span class="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Built-in</span>
+                                            @endif
                                         </div>
                                     </td>
 
@@ -144,10 +150,15 @@
                                             @endcan
 
                                             @can('roles.delete')
-                                                @if ($role->users_count === 0)
+                                                @if ($isBuiltIn)
+                                                    <span class="inline-flex h-8 cursor-not-allowed items-center gap-1.5 px-3 text-sm font-medium text-zinc-400" title="Built-in roles are protected">
+                                                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">lock</span>
+                                                        Built-in
+                                                    </span>
+                                                @else
                                                     <form action="{{ route('projects.roles.destroy', $role) }}"
                                                           method="POST"
-                                                          onsubmit="return confirm('Delete the role &quot;{{ e($role->name) }}&quot;? This cannot be undone.');">
+                                                          onsubmit="return confirm('Delete the role &quot;{{ e($role->name) }}&quot;? {{ $role->users_count > 0 ? 'Its assigned users will be moved to Team member.' : 'This cannot be undone.' }}');">
                                                         @csrf
                                                         @method('DELETE')
                                                         <button type="submit" class="{{ $btnDanger }}">
@@ -156,12 +167,6 @@
                                                             <span class="sr-only">{{ $role->name }}</span>
                                                         </button>
                                                     </form>
-                                                @else
-                                                    <span class="inline-flex h-8 cursor-not-allowed items-center gap-1.5 px-3 text-sm font-medium text-zinc-400"
-                                                          title="Reassign its {{ $role->users_count }} {{ Str::plural('user', $role->users_count) }} before deleting this role">
-                                                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">lock</span>
-                                                        In use
-                                                    </span>
                                                 @endif
                                             @endcan
                                         </div>

@@ -14,7 +14,7 @@ class DashboardController extends Controller
     $user = $request->user();
 
     $projectsCount = $user->can('projects.view')
-        ? Project::count()
+        ? Project::visibleTo($user)->count()
         : 0;
 
     $tasksQuery = Task::query();

@@ -5,6 +5,8 @@ namespace Modules\ProjectManagement\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -153,7 +155,7 @@ class RoleController extends Controller
             ],
         ]);
 
-        $role->update(['name' => $validated['name'] ?? $role->name]);
+        $role->update(['name' => $this->isBuiltIn($role) ? $role->name : ($validated['name'] ?? $role->name)]);
         if (array_key_exists('permissions', $validated)) {
             $role->syncPermissions($validated['permissions']);
         }
@@ -168,17 +170,42 @@ class RoleController extends Controller
     public function destroy(Role $role)
     {
         abort_if(
-            $role->users()->exists(),
+            $this->isBuiltIn($role),
             422,
-            'This role is assigned to users. Reassign those users before deleting it.'
+            'Built-in roles cannot be deleted.'
         );
 
-        $role->delete();
+        $fallbackRole = Role::query()
+            ->where('guard_name', $role->guard_name)
+            ->whereRaw("LOWER(REPLACE(REPLACE(name, ' ', '_'), '-', '_')) = ?", ['team_member'])
+            ->first();
+
+        abort_unless($fallbackRole, 422, 'The built-in Team member role is required before deleting custom roles.');
+
+        $reassignedUsers = $role->users()->count();
+
+        DB::transaction(function () use ($role, $fallbackRole) {
+            foreach ($role->users as $user) {
+                $user->removeRole($role);
+                $user->assignRole($fallbackRole);
+            }
+
+            $role->delete();
+        });
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return redirect()
             ->route('projects.roles.index')
-            ->with('success', 'Role deleted successfully.');
+            ->with('success', $reassignedUsers
+                ? "Role deleted. {$reassignedUsers} " . Str::plural('user', $reassignedUsers) . ' moved to Team member.'
+                : 'Role deleted successfully.');
+    }
+
+    private function isBuiltIn(Role $role): bool
+    {
+        $key = strtolower(str_replace([' ', '-'], '_', $role->name));
+
+        return in_array($key, ['manager', 'team_member'], true);
     }
 }

@@ -1,3 +1,9 @@
+@php
+    $builtInKey = strtolower(str_replace([' ', '-'], '_', $role->name));
+    $isBuiltIn = in_array($builtInKey, ['manager', 'team_member'], true);
+    $roleLabel = $builtInKey === 'team_member' ? 'Team member' : $role->name;
+@endphp
+
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -10,16 +16,12 @@
                 <div>
                     <p class="text-sm text-slate-500">{{ __('Roles') }}</p>
                     <h2 class="text-xl font-bold leading-tight tracking-tight text-[#0E1A2B]">
-                        {{ __('Edit role') }}: {{ $role->name }}
+                        {{ __('Edit role') }}: {{ $roleLabel }}
                     </h2>
                 </div>
             </div>
         </div>
     </x-slot>
-
-    @php
-        $isBuiltIn = in_array($role->name, ['Manager', 'Team Member'], true);
-    @endphp
 
     <div class="py-8">
         <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
@@ -47,7 +49,7 @@
                         <label for="name" class="block text-sm font-medium text-slate-700">{{ __('Role name') }}</label>
                         @if ($isBuiltIn)
                             <input type="hidden" name="name" value="{{ $role->name }}">
-                            <input id="name" type="text" value="{{ $role->name }}" disabled
+                            <input id="name" type="text" value="{{ $roleLabel }}" disabled
                                    class="mt-1.5 block w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-500">
                             <p class="mt-2 text-sm text-slate-500">{{ __('Built-in role names cannot be changed.') }}</p>
                         @else
@@ -65,6 +67,11 @@
                     <p class="mt-1 text-sm text-slate-500">{{ __('Choose what people with this role can do.') }}</p>
 
                     <div class="mt-5">
+                        @if ($isBuiltIn)
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                                {{ __('This built-in role name is fixed, but its permissions can be adjusted.') }}
+                            </div>
+                        @endif
                         @can('roles.assign-permissions')
                             <div class="rounded-xl border border-slate-200 bg-white p-5">
                                 @include('ProjectManagement::roles._permission-fields', [
@@ -98,4 +105,4 @@
             </form>
         </div>
     </div>
-</x-app-layout> 
+</x-app-layout>

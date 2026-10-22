@@ -17,10 +17,11 @@
 
     // ---- Task counts ---------------------------------------------------
     $totalTasks      = method_exists($tasks, 'total') ? $tasks->total() : $tasks->count();
-    $completedTasks  = $project->tasks()->whereIn('status', $doneStatuses)->count();
-    $inProgressTotal = $project->tasks()->where('status', 'in_progress')->count();
+    $visibleTaskScope = $project->tasks()->visibleTo(auth()->user());
+    $completedTasks  = (clone $visibleTaskScope)->whereIn('status', $doneStatuses)->count();
+    $inProgressTotal = (clone $visibleTaskScope)->where('status', 'in_progress')->count();
     $todoTotal       = max(0, $totalTasks - $completedTasks - $inProgressTotal);
-    $overdueTotal    = $project->tasks()->whereNotIn('status', $doneStatuses)->whereDate('due_date', '<', $today)->count();
+    $overdueTotal    = (clone $visibleTaskScope)->whereNotIn('status', $doneStatuses)->whereDate('due_date', '<', $today)->count();
 
     $progress = $totalTasks > 0 ? (int) round(($completedTasks / $totalTasks) * 100) : 0;
     $pctProg  = $totalTasks > 0 ? min(100 - $progress, (int) round(($inProgressTotal / $totalTasks) * 100)) : 0;
@@ -107,7 +108,49 @@
 @endphp
 
 <x-app-layout>
-    <style>[x-cloak]{display:none !important}</style>
+    <style>
+        [x-cloak]{display:none !important}
+
+        @keyframes project-view-enter {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes project-view-fill {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+
+        @keyframes project-view-donut {
+            from { stroke-dasharray: 0 100; }
+            to { stroke-dasharray: var(--project-progress) 100; }
+        }
+
+        .project-view-enter {
+            animation: project-view-enter .55s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .project-view-fill {
+            transform: scaleX(0);
+            transform-origin: left center;
+            animation: project-view-fill .7s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .project-view-donut {
+            animation: project-view-donut .9s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .project-view-row {
+            animation: project-view-enter .42s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .project-view-enter,
+            .project-view-fill,
+            .project-view-donut,
+            .project-view-row { animation: none !important; transform: none !important; }
+        }
+    </style>
 
     {{-- Theme wrapper: toggles the `dark` class on <html> and remembers the choice --}}
     <div class="min-h-[calc(100vh-4rem)] bg-transparent dark:bg-black"
@@ -139,7 +182,7 @@
         @endif
 
         {{-- Breadcrumb & top actions --}}
-        <div class="flex flex-col justify-between gap-space-md md:flex-row md:items-end">
+        <div class="project-view-enter flex flex-col justify-between gap-space-md md:flex-row md:items-end">
             <div class="flex min-w-0 flex-col gap-space-xs">
                 <nav class="flex items-center gap-2 text-label-md {{ $cx['muted'] }}" aria-label="Breadcrumb">
                     <a href="{{ route('projects.index') }}" class="flex items-center gap-1 rounded transition-colors hover:text-primary dark:hover:text-primary-fixed {{ $cx['focus'] }}">
@@ -179,7 +222,7 @@
         </div>
 
         {{-- ───────── Project overview ───────── --}}
-        <div class="flex w-full flex-col overflow-hidden rounded-xl {{ $cx['card'] }}">
+        <div class="project-view-enter flex w-full flex-col overflow-hidden rounded-xl {{ $cx['card'] }}" style="animation-delay: 80ms">
             <div class="h-2 w-full bg-gradient-to-r from-primary-container via-secondary-container to-tertiary-fixed"></div>
 
             <div class="flex flex-col gap-space-lg p-space-lg">
@@ -207,8 +250,9 @@
                             <svg class="h-14 w-14 -rotate-90 transform" viewBox="0 0 36 36" aria-hidden="true">
                                 <path class="text-surface-container-high dark:text-neutral-800" fill="none" stroke="currentColor" stroke-width="3.5"
                                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                                <path class="text-tertiary dark:text-tertiary-fixed" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"
+                                <path class="project-view-donut text-tertiary dark:text-tertiary-fixed" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"
                                       stroke-dasharray="{{ $progress }}, 100"
+                                      style="--project-progress: {{ $progress }}; animation-delay: 250ms"
                                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                             </svg>
                             <span class="absolute text-title-sm font-bold tabular-nums {{ $cx['text'] }}">{{ $progress }}%</span>
@@ -236,8 +280,8 @@
                     {{-- Segmented bar: done + in progress --}}
                     <div class="flex h-2.5 w-full overflow-hidden rounded-full {{ $cx['chip'] }}"
                          role="progressbar" aria-label="Project completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $progress }}">
-                        <div class="h-full bg-tertiary transition-all duration-500 ease-out dark:bg-tertiary-fixed" style="width: {{ $progress }}%"></div>
-                        <div class="h-full bg-secondary transition-all duration-500 ease-out dark:bg-secondary-fixed" style="width: {{ $pctProg }}%"></div>
+                        <div class="project-view-fill h-full bg-tertiary dark:bg-tertiary-fixed" style="width: {{ $progress }}%; animation-delay: 240ms"></div>
+                        <div class="project-view-fill h-full bg-secondary dark:bg-secondary-fixed" style="width: {{ $pctProg }}%; animation-delay: 360ms"></div>
                     </div>
 
                     {{-- Legend --}}
@@ -261,7 +305,7 @@
                                 <span class="tabular-nums">{{ $timelinePct }}%</span>
                             </div>
                             <div class="h-1.5 w-full overflow-hidden rounded-full {{ $cx['chip'] }}" aria-hidden="true">
-                                <div class="h-full rounded-full bg-amber-500 transition-all duration-500 ease-out" style="width: {{ $timelinePct }}%"></div>
+                                <div class="project-view-fill h-full rounded-full bg-amber-500" style="width: {{ $timelinePct }}%; animation-delay: 460ms"></div>
                             </div>
                         </div>
                     @endif
@@ -276,7 +320,7 @@
 
                 {{-- Meta grid --}}
                 <div class="grid grid-cols-2 gap-space-md md:grid-cols-4">
-                    <div class="flex flex-col gap-1 rounded-xl p-space-md {{ $cx['inset'] }}">
+                    <div class="project-view-enter flex flex-col gap-1 rounded-xl p-space-md {{ $cx['inset'] }}" style="animation-delay: 180ms">
                         <span class="flex items-center gap-1 text-label-sm uppercase tracking-wider {{ $cx['muted'] }}">
                             <span class="material-symbols-outlined text-[14px]" aria-hidden="true">calendar_today</span>
                             Start Date
@@ -285,7 +329,7 @@
                         <span class="text-body-sm {{ $cx['muted'] }}">{{ $project->start_date?->diffForHumans() ?? '—' }}</span>
                     </div>
 
-                    <div class="relative flex flex-col gap-1 overflow-hidden rounded-xl p-space-md {{ $endCardOverdue ? 'bg-error-container/30 dark:bg-error/10' : 'bg-secondary-fixed/20 dark:bg-secondary-fixed/10' }}">
+                    <div class="project-view-enter relative flex flex-col gap-1 overflow-hidden rounded-xl p-space-md {{ $endCardOverdue ? 'bg-error-container/30 dark:bg-error/10' : 'bg-secondary-fixed/20 dark:bg-secondary-fixed/10' }}" style="animation-delay: 240ms">
                         <div class="pointer-events-none absolute right-0 top-0 h-12 w-12 rounded-bl-full {{ $endCardOverdue ? 'bg-error-container/50 dark:bg-error/20' : 'bg-secondary-fixed/30 dark:bg-secondary-fixed/10' }}"></div>
                         <span class="flex items-center gap-1 text-label-sm uppercase tracking-wider text-on-secondary-fixed dark:text-secondary-fixed">
                             <span class="material-symbols-outlined text-[14px]" aria-hidden="true">event_busy</span>
@@ -295,7 +339,7 @@
                         <span class="text-body-sm {{ $endNote[1] }}">{{ $endNote[0] }}</span>
                     </div>
 
-                    <div class="flex flex-col gap-1 rounded-xl p-space-md {{ $cx['inset'] }}">
+                    <div class="project-view-enter flex flex-col gap-1 rounded-xl p-space-md {{ $cx['inset'] }}" style="animation-delay: 300ms">
                         <span class="flex items-center gap-1 text-label-sm uppercase tracking-wider {{ $cx['muted'] }}">
                             <span class="material-symbols-outlined text-[14px]" aria-hidden="true">add_circle</span>
                             Created
@@ -304,7 +348,7 @@
                         <span class="text-body-sm {{ $cx['muted'] }}">{{ $project->created_at->diffForHumans() }}</span>
                     </div>
 
-                    <div class="flex flex-col gap-1 rounded-xl p-space-md {{ $cx['inset'] }}">
+                    <div class="project-view-enter flex flex-col gap-1 rounded-xl p-space-md {{ $cx['inset'] }}" style="animation-delay: 360ms">
                         <span class="flex items-center gap-1 text-label-sm uppercase tracking-wider {{ $cx['muted'] }}">
                             <span class="material-symbols-outlined text-[14px]" aria-hidden="true">update</span>
                             Last Updated
@@ -317,7 +361,7 @@
         </div>
 
         {{-- ───────── Project tasks ───────── --}}
-        <div class="flex w-full flex-col overflow-hidden rounded-xl {{ $cx['card'] }}"
+        <div class="project-view-enter flex w-full flex-col overflow-hidden rounded-xl {{ $cx['card'] }}" style="animation-delay: 180ms"
              x-data="{
                  status: 'all',
                  priority: 'any',
@@ -444,8 +488,8 @@
                                     $ticket     = 'TSK-' . $project->id . '-' . str_pad($task->id, 2, '0', STR_PAD_LEFT);
                                 @endphp
 
-                                <tr x-show="ok('t{{ $task->id }}')"
-                                    class="h-14 transition-colors hover:bg-surface-container-low/70 dark:hover:bg-neutral-900 {{ $isOverdue ? 'bg-error-container/20 dark:bg-error/10' : 'bg-surface-container-lowest dark:bg-neutral-950' }}">
+                                <tr x-show="ok('t{{ $task->id }}')" style="animation-delay: {{ 260 + ($loop->index * 55) }}ms"
+                                    class="project-view-row h-14 transition-colors hover:bg-surface-container-low/70 dark:hover:bg-neutral-900 {{ $isOverdue ? 'bg-error-container/20 dark:bg-error/10' : 'bg-surface-container-lowest dark:bg-neutral-950' }}">
 
                                     {{-- Title --}}
                                     <td class="min-w-[280px] px-space-lg py-3">

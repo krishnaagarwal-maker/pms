@@ -41,25 +41,18 @@ class UserRoleController extends Controller
             'Only a manager can assign roles.'
         );
 
-        $availableRoles = Role::query()->pluck('name')->all();
-        $canonicalRoleMap = [
-            'manager' => 'manager',
-            'Manager' => 'manager',
-            'team_member' => 'team_member',
-            'team-member' => 'team_member',
-            'Team Member' => 'team_member',
-            'Team member' => 'team_member',
-        ];
-
         $validated = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
             'role' => ['required', 'string'],
         ]);
 
         $requestRole = trim((string) $validated['role']);
-        $normalizedRole = $canonicalRoleMap[strtolower($requestRole)] ?? $canonicalRoleMap[$requestRole] ?? $requestRole;
+        $role = Role::query()
+            ->where('guard_name', 'web')
+            ->whereRaw('LOWER(name) = ?', [strtolower($requestRole)])
+            ->first();
 
-        if (! in_array($normalizedRole, $availableRoles, true)) {
+        if (! $role) {
             throw ValidationException::withMessages([
                 'role' => ['The selected role is invalid.'],
             ]);
@@ -71,9 +64,9 @@ class UserRoleController extends Controller
             return back()->withErrors(['user_id' => 'You cannot change your own role from this screen.']);
         }
 
-        $selectedUser->syncRoles([$normalizedRole]);
+        $selectedUser->syncRoles([$role->name]);
 
-        return redirect()->route('projects.users.roles.index')->with('success', 'User role updated to ' . $normalizedRole . '.');
+        return redirect()->route('projects.users.roles.index')->with('success', 'User role updated to ' . $role->name . '.');
     }
 
     public function destroy(Request $request, User $user): RedirectResponse

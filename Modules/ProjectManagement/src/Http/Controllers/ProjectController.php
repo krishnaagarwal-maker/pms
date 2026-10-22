@@ -16,9 +16,9 @@ class ProjectController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        $projects = Project::latest()->paginate(10);
+        $projects = Project::visibleTo($request->user())->latest()->paginate(10);
 
         return view('ProjectManagement::projects.index', compact('projects'));
     }
@@ -50,7 +50,7 @@ class ProjectController extends Controller
 
         $project = Project::create($validated);
 
-        $this->notifyAllUsers(
+        $this->notifyProjectManagers(
             'Project created: ' . $project->name,
             route('projects.show', $project),
             'project_created'
@@ -67,9 +67,15 @@ class ProjectController extends Controller
      * @param  \App\Models\Project  $project
      * @return \Illuminate\Http\Response
      */
-    public function show(Project $project)
+    public function show(Request $request, Project $project)
     {
-        $tasks = $project->tasks()->with('assignee')->latest()->paginate(10);
+        $this->ensureVisibleTo($request->user(), $project);
+
+        $tasks = $project->tasks()
+            ->visibleTo($request->user())
+            ->with('assignee')
+            ->latest()
+            ->paginate(10);
 
         return view('ProjectManagement::projects.show', compact('project', 'tasks'));
     }
@@ -80,8 +86,10 @@ class ProjectController extends Controller
      * @param  \App\Models\Project  $project
      * @return \Illuminate\Http\Response
      */
-    public function edit(Project $project)
+    public function edit(Request $request, Project $project)
     {
+        $this->ensureVisibleTo($request->user(), $project);
+
         return view('ProjectManagement::projects.edit', compact('project'));
     }
 
@@ -94,6 +102,8 @@ class ProjectController extends Controller
      */
     public function update(Request $request, Project $project)
     {
+        $this->ensureVisibleTo($request->user(), $project);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -103,7 +113,7 @@ class ProjectController extends Controller
 
         $project->update($validated);
 
-        $this->notifyAllUsers(
+        $this->notifyProjectManagers(
             'Project updated: ' . $project->name,
             route('projects.show', $project),
             'project_updated'
@@ -120,22 +130,34 @@ class ProjectController extends Controller
      * @param  \App\Models\Project  $project
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Project $project)
+    public function destroy(Request $request, Project $project)
     {
+        $this->ensureVisibleTo($request->user(), $project);
+
         $projectName = $project->name;
         $project->delete();
 
-        $this->notifyAllUsers(
+        $this->notifyProjectManagers(
             'Project deleted: ' . $projectName,
             route('projects.index'),
             'project_deleted'
         );
     }
 
-    private function notifyAllUsers(string $message, ?string $link = null, string $type = 'system'): void
+    /** Project-wide notifications are reserved for users with assignment authority. */
+    private function notifyProjectManagers(string $message, ?string $link = null, string $type = 'system'): void
     {
-        User::query()->get()->each(function ($user) use ($message, $link, $type) {
+        User::query()->get()->filter(fn (User $user) => $user->can('tasks.assign'))->each(function (User $user) use ($message, $link, $type) {
             $user->notify(new SystemNotification('System update', $message, $link, $type));
         });
+    }
+
+    private function ensureVisibleTo(User $user, Project $project): void
+    {
+        abort_unless(
+            Project::visibleTo($user)->whereKey($project->getKey())->exists(),
+            403,
+            'You can only access projects with tasks assigned to you.'
+        );
     }
 }

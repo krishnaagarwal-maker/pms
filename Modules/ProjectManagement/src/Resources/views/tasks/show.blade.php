@@ -58,12 +58,56 @@
         ['Completed',   'check'],
     ];
 
-    // Neighbouring tasks in this project
-    $prevTask = $project->tasks()->where('id', '<', $task->id)->orderByDesc('id')->first();
-    $nextTask = $project->tasks()->where('id', '>', $task->id)->orderBy('id')->first();
+    // Neighbouring tasks in this project, restricted to tasks the signed-in user can open.
+    $visibleProjectTasks = $project->tasks()->visibleTo(auth()->user());
+    $prevTask = (clone $visibleProjectTasks)->where('id', '<', $task->id)->orderByDesc('id')->first();
+    $nextTask = (clone $visibleProjectTasks)->where('id', '>', $task->id)->orderBy('id')->first();
 @endphp
 
 <x-app-layout>
+    <style>
+        @keyframes task-view-enter {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes task-view-step-pop {
+            0% { opacity: 0; transform: scale(.65); }
+            70% { opacity: 1; transform: scale(1.12); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes task-view-line-grow {
+            from { transform: scaleX(0); }
+            to { transform: scaleX(1); }
+        }
+
+        .task-view-enter {
+            animation: task-view-enter .55s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .task-view-step {
+            animation: task-view-step-pop .42s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .task-view-step-line {
+            transform: scaleX(0);
+            transform-origin: left center;
+            animation: task-view-line-grow .55s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .task-view-activity {
+            animation: task-view-enter .4s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .task-view-enter,
+            .task-view-step,
+            .task-view-step-line,
+            .task-view-activity { animation: none !important; transform: none !important; }
+        }
+    </style>
+
     <div class="relative w-full overflow-hidden font-inter"
          x-data="{
              copied: false,
@@ -124,7 +168,7 @@
             @endif
 
             {{-- Top bar --}}
-            <div class="mb-space-lg flex flex-wrap items-center justify-between gap-space-md">
+            <div class="task-view-enter mb-space-lg flex flex-wrap items-center justify-between gap-space-md">
                 <nav class="flex flex-wrap items-center gap-2 text-label-md text-on-surface-variant" aria-label="Breadcrumb">
                     <a href="{{ route('projects.index') }}" class="flex items-center gap-1 rounded transition-colors hover:text-primary {{ $focus }}">
                         <span class="material-symbols-outlined text-[16px]" aria-hidden="true">folder_open</span>
@@ -154,7 +198,7 @@
                 <div class="flex flex-col gap-space-lg lg:col-span-8">
 
                     {{-- Header card --}}
-                    <section class="overflow-hidden {{ $card }}">
+                    <section class="task-view-enter overflow-hidden {{ $card }}" style="animation-delay: 70ms">
                         <div class="h-1.5 w-full {{ $dueState === 'overdue' ? 'bg-error' : ($isDone ? 'bg-tertiary' : 'bg-gradient-to-r from-primary-container via-secondary-container to-tertiary-fixed') }}"></div>
 
                         <div class="p-space-lg">
@@ -204,22 +248,22 @@
                                             $txt = 'text-on-surface-variant';
                                         }
                                     @endphp
-                                    <li class="flex items-center {{ $loop->last ? '' : 'flex-1' }}" @if ($i === $step) aria-current="step" @endif>
+                                    <li class="flex items-center {{ $loop->last ? '' : 'flex-1' }}" style="animation-delay: {{ 160 + ($i * 110) }}ms" @if ($i === $step) aria-current="step" @endif>
                                         <span class="flex items-center gap-2">
-                                            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full {{ $dot }}">
+                                            <span class="task-view-step flex h-7 w-7 shrink-0 items-center justify-center rounded-full {{ $dot }}" style="animation-delay: {{ 160 + ($i * 110) }}ms">
                                                 <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ $i < $step ? 'check' : $stepIcon }}</span>
                                             </span>
                                             <span class="hidden text-label-md sm:inline {{ $txt }}">{{ $stepLabel }}</span>
                                         </span>
                                         @unless ($loop->last)
-                                            <span class="mx-3 h-0.5 flex-1 rounded-full {{ $i < $step ? 'bg-tertiary' : 'bg-surface-container-high' }}" aria-hidden="true"></span>
+                                            <span class="task-view-step-line mx-3 h-0.5 flex-1 rounded-full {{ $i < $step ? 'bg-tertiary' : 'bg-surface-container-high' }}" style="animation-delay: {{ 250 + ($i * 110) }}ms" aria-hidden="true"></span>
                                         @endunless
                                     </li>
                                 @endforeach
                             </ol>
 
                             {{-- Specification --}}
-                            <div class="mt-space-lg rounded-xl bg-surface-container-low p-space-md">
+                            <div class="task-view-enter mt-space-lg rounded-xl bg-surface-container-low p-space-md" style="animation-delay: 440ms">
                                 <div class="mb-space-sm flex items-center justify-between">
                                     <span class="flex items-center gap-1.5 text-body-md font-medium text-on-surface">
                                         <span class="material-symbols-outlined text-[18px] text-on-surface-variant" aria-hidden="true">description</span>
@@ -245,7 +289,7 @@
 
                     {{-- Role & permissions (renders only if the task has a role) --}}
                     @if ($task->assignedRole ?? null)
-                        <section class="p-space-lg {{ $card }}">
+                        <section class="task-view-enter p-space-lg {{ $card }}" style="animation-delay: 160ms">
                             <div class="flex flex-wrap items-start justify-between gap-space-md">
                                 <div class="flex items-center gap-space-sm">
                                     <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-fixed text-primary">
@@ -284,7 +328,7 @@
                     @endif
 
                     {{-- Recent Updates --}}
-                    <section class="p-space-lg {{ $card }}">
+                    <section class="task-view-enter p-space-lg {{ $card }}" style="animation-delay: 220ms">
                         @php
                             $hasActivities = isset($activities);
                             $wasUpdated    = $task->updated_at->gt($task->created_at->copy()->addMinute());
@@ -301,7 +345,7 @@
                         <ol class="divide-y divide-surface-container-low">
                             @if ($hasActivities)
                                 @forelse ($activities->take(8) as $activity)
-                                    <li class="flex items-start justify-between gap-space-md py-space-sm">
+                                    <li class="task-view-activity flex items-start justify-between gap-space-md py-space-sm" style="animation-delay: {{ 300 + ($loop->index * 80) }}ms">
                                         <div class="flex items-start gap-space-sm">
                                             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-fixed text-primary">
                                                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">sync</span>
@@ -320,7 +364,7 @@
                                 @endforelse
                             @else
                                 @if ($wasUpdated)
-                                    <li class="flex items-start justify-between gap-space-md py-space-sm">
+                                    <li class="task-view-activity flex items-start justify-between gap-space-md py-space-sm" style="animation-delay: 300ms">
                                         <div class="flex items-start gap-space-sm">
                                             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-fixed text-primary">
                                                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">sync</span>
@@ -334,7 +378,7 @@
                                         <span class="shrink-0 pt-1.5 text-body-sm text-on-surface-variant" title="{{ $task->updated_at->format('d M Y, H:i') }}">{{ $task->updated_at->diffForHumans() }}</span>
                                     </li>
                                 @endif
-                                <li class="flex items-start justify-between gap-space-md py-space-sm">
+                                <li class="task-view-activity flex items-start justify-between gap-space-md py-space-sm" style="animation-delay: {{ $wasUpdated ? 380 : 300 }}ms">
                                     <div class="flex items-start gap-space-sm">
                                         <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-tertiary-fixed/40 text-tertiary">
                                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_task</span>
@@ -352,7 +396,7 @@
 
                     {{-- Previous / next task --}}
                     @if ($prevTask || $nextTask)
-                        <nav class="grid grid-cols-1 gap-space-sm sm:grid-cols-2" aria-label="Neighbouring tasks">
+                        <nav class="task-view-enter grid grid-cols-1 gap-space-sm sm:grid-cols-2" style="animation-delay: 300ms" aria-label="Neighbouring tasks">
                             @if ($prevTask)
                                 <a href="{{ route('projects.tasks.show', [$project, $prevTask]) }}"
                                    class="group flex items-center gap-3 p-space-md transition-all hover:shadow-md {{ $card }} {{ $focus }}">
@@ -383,7 +427,7 @@
                 {{-- ============ Sidebar ============ --}}
                 <aside class="flex flex-col gap-space-lg lg:sticky lg:top-6 lg:col-span-4">
 
-                    <section class="p-space-lg {{ $card }}">
+                    <section class="task-view-enter p-space-lg {{ $card }}" style="animation-delay: 140ms">
                         <h2 class="text-title-md text-on-surface">Task Details</h2>
 
                         <dl class="mt-space-md divide-y divide-surface-container-low">
@@ -462,7 +506,7 @@
                         </dl>
                     </section>
 
-                    <section class="p-space-lg {{ $card }}">
+                    <section class="task-view-enter p-space-lg {{ $card }}" style="animation-delay: 220ms">
                         <h2 class="mb-space-md text-title-md text-on-surface">Task Actions</h2>
 
                         <div class="flex flex-col gap-space-sm">
