@@ -327,6 +327,19 @@
                         </section>
                     @endif
 
+                    {{-- Task Attachments --}}
+                    @php
+                        $canUploadTask = auth()->user()->can('tasks.edit') ||
+                            ((int) $task->assigned_to === (int) auth()->id() && auth()->user()->can('tasks.update-status'));
+                    @endphp
+                    @include('ProjectManagement::attachments._section', [
+                        'attachable' => $task,
+                        'title' => 'Task Attachments',
+                        'subtitle' => 'Reference documents, screenshots, logs, and deliverables for this task',
+                        'uploadRoute' => route('projects.tasks.attachments.store', [$project, $task]),
+                        'canUpload' => $canUploadTask,
+                    ])
+
                     {{-- Recent Updates --}}
                     <section class="task-view-enter p-space-lg {{ $card }}" style="animation-delay: 220ms">
                         @php

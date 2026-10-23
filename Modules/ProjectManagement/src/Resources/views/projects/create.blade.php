@@ -125,7 +125,7 @@
             <div class="grid grid-cols-1 items-start gap-gutter lg:grid-cols-12">
 
                 {{-- LEFT: form --}}
-                <form id="project-form" x-ref="form" action="{{ route('projects.store') }}" method="POST"
+                <form id="project-form" x-ref="form" action="{{ route('projects.store') }}" method="POST" enctype="multipart/form-data"
                       class="flex flex-col gap-space-lg lg:col-span-8">
                     @csrf
 
@@ -254,51 +254,21 @@
                         </div>
                     </div>
 
-                    {{--
-                    |----------------------------------------------------------------------
-                    | RBAC-SECTION-3: Assignment & Governance  (COMMENTED OUT)
-                    |----------------------------------------------------------------------
-                    | Enable after roles/permissions exist. Needs:
-                    |   - $assignableUsers passed from ProjectController@create
-                    |   - permission "projects.assign" (e.g. manager role has it,
-                    |     team member does not; custom roles can be granted it)
-                    |   - 'lead_id' validated + authorized in ProjectController@store
-                    |   - a nullable lead_id column on projects (foreignId -> users)
-                    |
-                    | To enable: delete the Blade comment markers around this block.
-                    |
-                    | @can('projects.assign')
-                    | <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
-                    |     <div class="mb-space-md flex items-center justify-between border-b border-surface-container-low pb-space-sm">
-                    |         <div class="flex items-center gap-space-xs">
-                    |             <span class="material-symbols-outlined text-[22px] text-primary">hub</span>
-                    |             <h2 class="text-title-md text-on-surface">3. Assignment & Governance</h2>
-                    |         </div>
-                    |         <span class="text-label-sm text-on-surface-variant">Team</span>
-                    |     </div>
-                    |
-                    |     <label for="lead_id" class="mb-space-xs block text-label-md text-on-surface">
-                    |         Project Lead / Owner
-                    |     </label>
-                    |     <div class="relative flex items-center">
-                    |         <span class="material-symbols-outlined pointer-events-none absolute left-3 text-[18px] text-on-surface-variant">person</span>
-                    |         <select id="lead_id" name="lead_id"
-                    |                 class="w-full appearance-none rounded-xl border-0 bg-surface-container-lowest py-2 pl-10 pr-8 text-body-md text-on-surface shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:outline-none focus:ring-0 focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]">
-                    |             <option value="">Unassigned</option>
-                    |             @foreach ($assignableUsers as $user)
-                    |                 <option value="{{ $user->id }}" @selected(old('lead_id') == $user->id)>
-                    |                     {{ $user->name }}
-                    |                 </option>
-                    |             @endforeach
-                    |         </select>
-                    |         <span class="material-symbols-outlined pointer-events-none absolute right-2 text-[18px] text-on-surface-variant">expand_more</span>
-                    |     </div>
-                    |     @error('lead_id')
-                    |         <p class="mt-1.5 text-body-sm text-error">{{ $message }}</p>
-                    |     @enderror
-                    | </div>
-                    | @endcan
-                    --}}
+                    {{-- SECTION 3: Attachments --}}
+                    <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+                        <div class="mb-space-md flex items-center justify-between border-b border-surface-container-low pb-space-sm">
+                            <div class="flex items-center gap-space-xs">
+                                <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">attach_file</span>
+                                <h2 class="text-title-md text-on-surface">3. Attachments</h2>
+                            </div> 
+                        </div>
+
+                        @include('ProjectManagement::attachments._form-upload', [
+                            'label' => 'Project Files & Documents',
+                        ])
+                    </div>
+
+                    
 
                     {{-- Bottom actions --}}
                     <div class="flex items-center justify-between gap-space-md pt-space-xs">
@@ -307,15 +277,6 @@
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
                             Discard and return to Projects
                         </a>
-
-                        <div class="flex items-center gap-space-sm">
-                            <span class="hidden font-code-sm text-[11px] text-on-surface-variant sm:inline">Press Ctrl + Enter to submit</span>
-                            <button type="submit"
-                                    class="flex h-11 items-center gap-2 rounded-xl bg-primary-container px-space-lg text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
-                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">rocket_launch</span>
-                                Create Project
-                            </button>
-                        </div>
                     </div>
                 </form>
 

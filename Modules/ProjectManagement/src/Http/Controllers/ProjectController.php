@@ -58,9 +58,33 @@ class ProjectController extends Controller
             'description' => ['nullable', 'string'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'attachments' => ['nullable'],
+            'attachments.*' => ['file', 'max:25600'],
         ]);
 
-        $project = Project::create($validated);
+        $project = Project::create([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'start_date' => $validated['start_date'] ?? null,
+            'end_date' => $validated['end_date'] ?? null,
+        ]);
+
+        if ($request->hasFile('attachments')) {
+            $files = is_array($request->file('attachments')) ? $request->file('attachments') : [$request->file('attachments')];
+            foreach ($files as $file) {
+                if ($file && $file->isValid()) {
+                    $path = $file->store("attachments/projects/{$project->id}", 'public');
+                    $project->attachments()->create([
+                        'uploaded_by' => $request->user()->id,
+                        'file_name' => $file->getClientOriginalName(),
+                        'file_path' => $path,
+                        'file_size' => $file->getSize() ?: 0,
+                        'mime_type' => $file->getClientMimeType() ?: $file->getMimeType(),
+                        'disk' => 'public',
+                    ]);
+                }
+            }
+        }
 
         $this->notifyProjectManagers(
             'Project created: ' . $project->name,
@@ -83,6 +107,8 @@ class ProjectController extends Controller
     {
         $this->ensureVisibleTo($request->user(), $project);
 
+        $project->load(['attachments.uploader']);
+
         $tasks = $project->tasks()
             ->visibleTo($request->user())
             ->with('assignee')
@@ -101,6 +127,8 @@ class ProjectController extends Controller
     public function edit(Request $request, Project $project)
     {
         $this->ensureVisibleTo($request->user(), $project);
+
+        $project->load(['attachments.uploader']);
 
         return view('ProjectManagement::projects.edit', compact('project'));
     }
@@ -121,9 +149,33 @@ class ProjectController extends Controller
             'description' => ['nullable', 'string'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'attachments' => ['nullable'],
+            'attachments.*' => ['file', 'max:25600'],
         ]);
 
-        $project->update($validated);
+        $project->update([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'start_date' => $validated['start_date'] ?? null,
+            'end_date' => $validated['end_date'] ?? null,
+        ]);
+
+        if ($request->hasFile('attachments')) {
+            $files = is_array($request->file('attachments')) ? $request->file('attachments') : [$request->file('attachments')];
+            foreach ($files as $file) {
+                if ($file && $file->isValid()) {
+                    $path = $file->store("attachments/projects/{$project->id}", 'public');
+                    $project->attachments()->create([
+                        'uploaded_by' => $request->user()->id,
+                        'file_name' => $file->getClientOriginalName(),
+                        'file_path' => $path,
+                        'file_size' => $file->getSize() ?: 0,
+                        'mime_type' => $file->getClientMimeType() ?: $file->getMimeType(),
+                        'disk' => 'public',
+                    ]);
+                }
+            }
+        }
 
         $this->notifyProjectManagers(
             'Project updated: ' . $project->name,

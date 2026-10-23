@@ -5,6 +5,8 @@ namespace Modules\ProjectManagement\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Modules\ProjectManagement\Models\Attachment;
 use Modules\ProjectManagement\Models\Task;
 use Illuminate\Database\Eloquent\Builder;
 use App\Models\User;
@@ -56,6 +58,11 @@ class Project extends Model
     public function tasks()
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable')->latest();
     }
 
     /** Projects are visible to members only when they have an assigned task in them. */

@@ -174,11 +174,11 @@
     $kpiDone = 'bg-emerald-50 text-emerald-600';
     $kpiWait = 'bg-amber-50 text-amber-600';
     $kpis = [
-        ['Total projects',    $projectsCount,  'projects.view', 'projects.index',       'folder_open',  $kpiIcon,                'Active in workspace'],
-        ['Total tasks',       $totalTasks,     'tasks.view',    'projects.tasks.index', 'checklist',    $kpiIcon,                'Across all projects'],
-        ['Completed',         $completedTasks, 'tasks.view',    'projects.tasks.index', 'check_circle', $kpiDone,                $resolvedPct . '% resolved'],
-        ['Pending / in flow', $pendingTasks,   'tasks.view',    'projects.tasks.index', 'pending',      $kpiWait,                'Unresolved tasks'],
-        ['Overdue',           $overdueTasks,   'tasks.view',    'projects.tasks.index', 'warning',      'bg-red-50 text-red-600', $overdueTasks > 0 ? 'Past due date' : 'All clear'],
+        ['Total projects',    $projectsCount,  'projects.view', 'projects.index',       'folder_open',  $kpiIcon,                'Active in workspace', null],
+        ['Total tasks',       $totalTasks,     'tasks.view',    'projects.tasks.index', 'checklist',    $kpiIcon,                'Across all projects', null],
+        ['Completed',         $completedTasks, 'tasks.view',    'projects.tasks.index', 'check_circle', $kpiDone,                $resolvedPct . '% resolved', 'completed'],
+        ['Pending / in flow', $pendingTasks,   'tasks.view',    'projects.tasks.index', 'pending',      $kpiWait,                'Unresolved tasks', 'pending'],
+        ['Overdue',           $overdueTasks,   'tasks.view',    'projects.tasks.index', 'warning',      'bg-red-50 text-red-600', $overdueTasks > 0 ? 'Past due date' : 'All clear', 'overdue'],
     ];
 @endphp
 
@@ -495,10 +495,10 @@
 
             {{-- KPI cards --}}
             <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-5">
-                @foreach ($kpis as [$label, $count, $permission, $routeName, $icon, $iconBox, $hint])
+                @foreach ($kpis as [$label, $count, $permission, $routeName, $icon, $iconBox, $hint, $statusFilter])
                     @can($permission)
                         @php $alert = $label === 'Overdue' && $count > 0; @endphp
-                        <a href="{{ route($routeName) }}"
+                        <a href="{{ route($routeName, $statusFilter ? ['status' => $statusFilter] : []) }}"
                            class="dash-animate-card delay-{{ min($loop->iteration, 5) }} group rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgba(24,24,27,0.05)] transition hover:shadow-md {{ $focus }} {{ $alert ? 'border-red-200 hover:border-red-300' : 'border-zinc-200 hover:border-zinc-400' }}">
                             <div class="flex items-start justify-between">
                                 <p class="text-[13px] font-medium text-zinc-600">{{ $label }}</p>

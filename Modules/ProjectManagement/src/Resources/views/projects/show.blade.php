@@ -360,8 +360,17 @@
             </div>
         </div>
 
+        {{-- ───────── Project Attachments ───────── --}}
+        @include('ProjectManagement::attachments._section', [
+            'attachable' => $project,
+            'title' => 'Project Attachments',
+            'subtitle' => 'Deliverables, specifications, design assets, and project files',
+            'uploadRoute' => route('projects.attachments.store', $project),
+            'canUpload' => auth()->user()->can('projects.edit') || auth()->user()->can('projects.create'),
+        ])
+
         {{-- ───────── Project tasks ───────── --}}
-        <div class="project-view-enter flex w-full flex-col overflow-hidden rounded-xl {{ $cx['card'] }}" style="animation-delay: 180ms"
+        <div class="project-view-enter flex w-full flex-col overflow-hidden rounded-xl {{ $cx['card'] }}" style="animation-delay: 240ms"
              x-data="{
                  status: 'all',
                  priority: 'any',
@@ -408,8 +417,8 @@
                     @can('tasks.create')
                         <a href="{{ route('projects.tasks.create', $project) }}"
                            class="flex h-9 items-center gap-1.5 rounded-xl bg-primary-container px-space-md text-label-md text-on-primary shadow-sm transition-colors hover:bg-primary {{ $cx['focus'] }}">
-                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_task</span>
-                            Create Task
+                            
+                            + Create Task
                         </a>
                     @endcan
                 </div>
@@ -588,18 +597,6 @@
                                                     <span class="sr-only">Edit</span>
                                                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
                                                 </a>
-                                            @endcan
-                                            @can('tasks.update-status')
-                                                <form action="{{ route('projects.tasks.update', [$project, $task]) }}" method="POST" class="inline">
-                                                    @csrf
-                                                    @method('PUT')
-                                                    <input type="hidden" name="status" value="{{ $task->status === 'pending' ? 'in_progress' : ($task->status === 'in_progress' ? 'completed' : 'pending') }}">
-                                                    <button type="submit" title="Update Status"
-                                                            class="rounded-lg p-1.5 transition-colors {{ $cx['muted'] }} hover:bg-secondary-container hover:text-on-secondary-container dark:hover:bg-secondary-fixed/20 dark:hover:text-secondary-fixed {{ $cx['focus'] }}">
-                                                        <span class="sr-only">Update Status</span>
-                                                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">sync</span>
-                                                    </button>
-                                                </form>
                                             @endcan
                                             @can('tasks.delete')
                                                 <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST" class="inline"

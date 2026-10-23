@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\ProjectManagement\Models\Project;
-use Illuminate\Database\Eloquent\Relations\BelongsTo; 
+use Modules\ProjectManagement\Models\Attachment;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Builder;
 use App\Models\User;
 
@@ -69,7 +71,12 @@ class Task extends Model
     public function assignee(): BelongsTo
     {
          return $this->belongsTo(\App\Models\User::class, 'assigned_to');
-}
+    }
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable')->latest();
+    }
 
     /** Limit standard members to tasks assigned directly to them. */
     public function scopeVisibleTo(Builder $query, User $user): Builder

@@ -59,6 +59,8 @@ public function index(Request $request)
         $query->whereNot('status', 'completed')
             ->whereNotNull('due_date')
             ->whereDate('due_date', '<', today());
+    // } elseif (($filters['status'] ?? null) === 'pending') {
+    //     $query->whereIn('status', ['pending', 'in_progress']);
     } elseif (in_array($filters['status'] ?? null, $allowedStatuses, true)) {
         $query->where('status', $filters['status']);
     }
@@ -94,7 +96,7 @@ public function index(Request $request)
 
     $statusCounts = [
         'all' => (clone $countQuery)->count(),
-        'pending' => (clone $countQuery)->where('status', 'pending')->count(),
+        'pending' => (clone $countQuery)->where('status', ['pending'])->count(),
         'in_progress' => (clone $countQuery)->where('status', 'in_progress')->count(),
         'completed' => (clone $countQuery)->where('status', 'completed')->count(),
         'overdue' => (clone $countQuery)
@@ -139,12 +141,36 @@ public function index(Request $request)
             'priority' => ['required', 'in:low,medium,high'],
             'status' => ['required', 'in:pending,in_progress,completed'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            'attachments' => ['nullable'],
+            'attachments.*' => ['file', 'max:25600'],
         ]);
 
         $task = $project->tasks()->create([
-            ...$validated,
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'due_date' => $validated['due_date'] ?? null,
+            'priority' => $validated['priority'],
+            'status' => $validated['status'],
+            'assigned_to' => $validated['assigned_to'] ?? null,
             'created_by' => $request->user()->id,
         ]);
+
+        if ($request->hasFile('attachments')) {
+            $files = is_array($request->file('attachments')) ? $request->file('attachments') : [$request->file('attachments')];
+            foreach ($files as $file) {
+                if ($file && $file->isValid()) {
+                    $path = $file->store("attachments/tasks/{$task->id}", 'public');
+                    $task->attachments()->create([
+                        'uploaded_by' => $request->user()->id,
+                        'file_name' => $file->getClientOriginalName(),
+                        'file_path' => $path,
+                        'file_size' => $file->getSize() ?: 0,
+                        'mime_type' => $file->getClientMimeType() ?: $file->getMimeType(),
+                        'disk' => 'public',
+                    ]);
+                }
+            }
+        }
 
         $this->notifyTaskRecipients(
             $task,
@@ -178,12 +204,10 @@ public function index(Request $request)
 
     public function show(Project $project, Task $task)
     {
-        // $task->load('project');
-
         $task = $project->tasks()
-        ->visibleTo(request()->user())
-        ->with('assignee')
-        ->findOrFail($task->id);
+            ->visibleTo(request()->user())
+            ->with(['assignee', 'attachments.uploader'])
+            ->findOrFail($task->id);
 
         return view('ProjectManagement::tasks.show', compact('project', 'task'));
     }
@@ -193,7 +217,10 @@ public function index(Request $request)
      */
     public function edit(Project $project, Task $task)
     {
-        $task = $project->tasks()->visibleTo(request()->user())->findOrFail($task->id);
+        $task = $project->tasks()
+            ->visibleTo(request()->user())
+            ->with(['attachments.uploader'])
+            ->findOrFail($task->id);
         $users = \App\Models\User::orderBy('name')->get();
     
         return view('ProjectManagement::tasks.edit', compact('project', 'task', 'users'));
@@ -245,12 +272,38 @@ public function update(Request $request, Project $project, Task $task)
         'priority' => ['required', 'in:low,medium,high'],
         'status' => ['required', 'in:pending,in_progress,completed'],
         'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+        'attachments' => ['nullable'],
+        'attachments.*' => ['file', 'max:25600'],
     ];
 
     $validated = $request->validate($rules);
 
     $previousAssigneeId = $task->assigned_to;
-    $task->update($validated);
+    $task->update([
+        'title' => $validated['title'],
+        'description' => $validated['description'] ?? null,
+        'due_date' => $validated['due_date'] ?? null,
+        'priority' => $validated['priority'],
+        'status' => $validated['status'],
+        'assigned_to' => $validated['assigned_to'] ?? null,
+    ]);
+
+    if ($request->hasFile('attachments')) {
+        $files = is_array($request->file('attachments')) ? $request->file('attachments') : [$request->file('attachments')];
+        foreach ($files as $file) {
+            if ($file && $file->isValid()) {
+                $path = $file->store("attachments/tasks/{$task->id}", 'public');
+                $task->attachments()->create([
+                    'uploaded_by' => $user->id,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_path' => $path,
+                    'file_size' => $file->getSize() ?: 0,
+                    'mime_type' => $file->getClientMimeType() ?: $file->getMimeType(),
+                    'disk' => 'public',
+                ]);
+            }
+        }
+    }
 
     $this->notifyTaskRecipients(
         $task,

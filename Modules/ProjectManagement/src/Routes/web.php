@@ -7,6 +7,7 @@ use Modules\ProjectManagement\Http\Controllers\RoleController;
 use Modules\ProjectManagement\Http\Controllers\TaskController;
 use Modules\ProjectManagement\Http\Controllers\DashboardController;
 use Modules\ProjectManagement\Http\Controllers\UserRoleController;
+use Modules\ProjectManagement\Http\Controllers\AttachmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -53,9 +54,15 @@ Route::middleware(['web', 'auth'])
         Route::get('/users/roles', [UserRoleController::class, 'index'])->middleware('auth')->name('users.roles.index');
         Route::post('/users/roles', [UserRoleController::class, 'assign'])->middleware('auth')->name('users.roles.assign');
         Route::delete('/users/{user}', [UserRoleController::class, 'destroy'])->middleware('auth')->name('users.destroy');
+        // Attachment routes (download, preview, delete)
+        Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
+        Route::get('/attachments/{attachment}/preview', [AttachmentController::class, 'preview'])->name('attachments.preview');
+        Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
 
         Route::get('/{project}/tasks/create', [TaskController::class, 'create'])->middleware('permission:tasks.create')->name('tasks.create');
         Route::post('/{project}/tasks', [TaskController::class, 'store'])->middleware('permission:tasks.create')->name('tasks.store');
+        Route::post('/{project}/attachments', [AttachmentController::class, 'storeProject'])->name('attachments.store');
+        Route::post('/{project}/tasks/{task}/attachments', [AttachmentController::class, 'storeTask'])->name('tasks.attachments.store');
         Route::get('/{project}/tasks/{task}', [TaskController::class, 'show'])->middleware('permission:tasks.view')->name('tasks.show');
         Route::get('/{project}/tasks/{task}/edit', [TaskController::class, 'edit'])->middleware('permission:tasks.edit')->name('tasks.edit');
         Route::put('/{project}/tasks/{task}', [TaskController::class, 'update'])
