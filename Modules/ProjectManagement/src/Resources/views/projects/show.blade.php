@@ -108,6 +108,7 @@
 @endphp
 
 <x-app-layout>
+
     <style>
         [x-cloak]{display:none !important}
 
@@ -144,11 +145,23 @@
             animation: project-view-enter .42s cubic-bezier(.22,.8,.25,1) both;
         }
 
+        @keyframes project-view-sweep {
+            0% { background-position: 200% -200%; }
+            100% { background-position: -200% 200%; }
+        }
+
+        .dark .project-view-sweep {
+            background-image: linear-gradient(225deg, transparent 40%, rgba(255,255,255,.10) 50%, transparent 60%);
+            background-size: 200% 200%;
+            animation: project-view-sweep 6s linear infinite;
+        }
+
         @media (prefers-reduced-motion: reduce) {
             .project-view-enter,
             .project-view-fill,
             .project-view-donut,
-            .project-view-row { animation: none !important; transform: none !important; }
+            .project-view-row,
+            .project-view-sweep { animation: none !important; transform: none !important; }
         }
     </style>
 
@@ -222,7 +235,7 @@
         </div>
 
         {{-- ───────── Project overview ───────── --}}
-        <div class="project-view-enter flex w-full flex-col overflow-hidden rounded-xl {{ $cx['card'] }}" style="animation-delay: 80ms">
+        <div class="project-view-enter flex w-full flex-col overflow-hidden rounded-xl {{ $cx['card'] }} project-view-sweep" style="animation-delay: 80ms">
             <div class="h-2 w-full bg-gradient-to-r from-primary-container via-secondary-container to-tertiary-fixed"></div>
 
             <div class="flex flex-col gap-space-lg p-space-lg">
@@ -417,7 +430,7 @@
                     @can('tasks.create')
                         <a href="{{ route('projects.tasks.create', $project) }}"
                            class="flex h-9 items-center gap-1.5 rounded-xl bg-primary-container px-space-md text-label-md text-on-primary shadow-sm transition-colors hover:bg-primary {{ $cx['focus'] }}">
-                            
+
                             + Create Task
                         </a>
                     @endcan

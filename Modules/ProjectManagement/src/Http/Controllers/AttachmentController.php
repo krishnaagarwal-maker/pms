@@ -5,12 +5,11 @@ namespace Modules\ProjectManagement\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Modules\ProjectManagement\Models\Attachment;
 use Modules\ProjectManagement\Models\Project;
 use Modules\ProjectManagement\Models\Task;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+
 
 class AttachmentController extends Controller
 {
@@ -34,20 +33,12 @@ class AttachmentController extends Controller
             return back()->withErrors(['attachments' => 'Please select at least one valid file to upload.']);
         }
 
-        $count = 0;
-        foreach ($files as $file) {
-            $path = $file->store("attachments/projects/{$project->id}", 'public');
-
-            $project->attachments()->create([
-                'uploaded_by' => $user->id,
-                'file_name' => $file->getClientOriginalName(),
-                'file_path' => $path,
-                'file_size' => $file->getSize() ?: 0,
-                'mime_type' => $file->getClientMimeType() ?: $file->getMimeType(),
-                'disk' => 'public',
-            ]);
-            $count++;
-        }
+        $count = $this->saveAttachments(
+            $project,
+            $files,
+            $user->id,
+            "attachments/projects/{$project->id}"
+        );
 
         $message = $count === 1 ? 'Attachment uploaded successfully.' : "{$count} attachments uploaded successfully.";
 
@@ -79,20 +70,12 @@ class AttachmentController extends Controller
             return back()->withErrors(['attachments' => 'Please select at least one valid file to upload.']);
         }
 
-        $count = 0;
-        foreach ($files as $file) {
-            $path = $file->store("attachments/tasks/{$task->id}", 'public');
-
-            $task->attachments()->create([
-                'uploaded_by' => $user->id,
-                'file_name' => $file->getClientOriginalName(),
-                'file_path' => $path,
-                'file_size' => $file->getSize() ?: 0,
-                'mime_type' => $file->getClientMimeType() ?: $file->getMimeType(),
-                'disk' => 'public',
-            ]);
-            $count++;
-        }
+        $count = $this->saveAttachments(
+            $task,
+            $files,
+            $user->id,
+            "attachments/tasks/{$task->id}"
+        );
 
         $message = $count === 1 ? 'Attachment uploaded successfully.' : "{$count} attachments uploaded successfully.";
 
@@ -126,7 +109,7 @@ class AttachmentController extends Controller
 
         return response()->file($disk->path($attachment->file_path), [
             'Content-Type' => $attachment->mime_type ?: 'application/octet-stream',
-            'Content-Disposition' => 'inline; filename="' . addslashes($attachment->file_name) . '"',
+            'Content-Disposition' => 'inline; filename="'.addslashes($attachment->file_name).'"',
         ]);
     }
 
@@ -157,7 +140,7 @@ class AttachmentController extends Controller
         $fileName = $attachment->file_name;
         $attachment->delete();
 
-        return back()->with('success', 'Attachment "' . $fileName . '" deleted successfully.');
+        return back()->with('success', 'Attachment "'.$fileName.'" deleted successfully.');
     }
 
     /**
@@ -215,5 +198,38 @@ class AttachmentController extends Controller
         }
 
         return array_filter($files);
+    }
+
+    /**
+     * Save uploaded attachments and their database records.
+     */
+    private function saveAttachments(
+        Project|Task $attachable,
+        array $files,
+        int $userId,
+        string $directory
+    ): int {
+        $count = 0;
+
+        foreach ($files as $file) {
+            if (! $file || ! $file->isValid()) {
+                continue;
+            }
+
+            $path = $file->store($directory, 'public');
+
+            $attachable->attachments()->create([
+                'uploaded_by' => $userId,
+                'file_name' => $file->getClientOriginalName(),
+                'file_path' => $path,
+                'file_size' => $file->getSize() ?: 0,
+                'mime_type' => $file->getClientMimeType() ?: $file->getMimeType(),
+                'disk' => 'public',
+            ]);
+
+            $count++;
+        }
+
+        return $count;
     }
 }

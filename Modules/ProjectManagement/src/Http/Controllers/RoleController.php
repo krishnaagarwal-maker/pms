@@ -66,10 +66,19 @@ class RoleController extends Controller
     public function store(Request $request)
     {
         abort_unless(
-            $request->user()->can('roles.assign-permissions'),
+            $request->user()->can('roles.create'),
             403,
-            'You are not allowed to assign permissions.'
+            'You are not allowed to create roles.'
         );
+
+        if ($request->exists('permissions')) {
+            abort_unless(
+                $request->user()->can('roles.assign-permissions'),
+                403,
+                'You are not allowed to assign permissions.'
+            );
+        }
+
         $assignablePermissions = $request->user()
         ->getAllPermissions()
         ->where('guard_name', 'web')

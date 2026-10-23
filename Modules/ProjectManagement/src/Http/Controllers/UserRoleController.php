@@ -15,9 +15,9 @@ class UserRoleController extends Controller
     public function index(Request $request)
     {
         abort_unless(
-            $request->user()?->hasRole(['manager']) || $request->user()?->can('roles.assign-permissions'),
+            $request->user()->can('roles.view'),
             403,
-            'Only a manager can manage user roles.'
+            'You are not allowed to view user roles.'
         );
 
         $users = User::query()
@@ -36,9 +36,9 @@ class UserRoleController extends Controller
     public function assign(Request $request): RedirectResponse
     {
         abort_unless(
-            $request->user()?->hasRole(['manager']) || $request->user()?->can('roles.assign-permissions'),
+            $request->user()->can('roles.assign-permissions'),
             403,
-            'Only a manager can assign roles.'
+            'You are not allowed to assign roles.'
         );
 
         $validated = $request->validate([
@@ -69,10 +69,10 @@ class UserRoleController extends Controller
         return redirect()->route('projects.users.roles.index')->with('success', 'User role updated to ' . $role->name . '.');
     }
 
-         public function destroy(Request $request, User $user): RedirectResponse
+public function destroy(Request $request, User $user): RedirectResponse
     {
         abort_unless(
-            $request->user()?->can('roles.delete'),
+            $request->user()->can('users.delete'),
             403,
             'You do not have permission to delete users.'
         );

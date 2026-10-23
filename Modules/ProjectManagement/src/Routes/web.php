@@ -44,16 +44,45 @@ Route::middleware(['web', 'auth'])
             ->name('my-tasks');
 
             // Role Management routes
-        Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:roles.view')->name('roles.index');
-        Route::get('/roles/create', [RoleController::class, 'create'])->middleware('permission:roles.create')->name('roles.create');
-        Route::post('/roles', [RoleController::class, 'store'])->middleware('permission:roles.create')->name('roles.store');
-        Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])->middleware('permission:roles.edit')->name('roles.edit');
-        Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('permission:roles.edit')->name('roles.update');
-        Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:roles.delete')->name('roles.destroy');
 
-        Route::get('/users/roles', [UserRoleController::class, 'index'])->middleware('auth')->name('users.roles.index');
-        Route::post('/users/roles', [UserRoleController::class, 'assign'])->middleware('auth')->name('users.roles.assign');
-        Route::delete('/users/{user}', [UserRoleController::class, 'destroy'])->middleware('auth')->name('users.destroy');
+        // Role Management routes
+        Route::get('/roles', [RoleController::class, 'index'])
+            ->middleware('permission:roles.view')
+            ->name('roles.index');
+
+        Route::get('/roles/create', [RoleController::class, 'create'])
+            ->middleware('permission:roles.create')
+            ->name('roles.create');
+
+        Route::post('/roles', [RoleController::class, 'store'])
+            ->middleware('permission:roles.create')
+            ->name('roles.store');
+
+        Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])
+            ->middleware('permission:roles.edit')
+            ->name('roles.edit');
+
+        Route::put('/roles/{role}', [RoleController::class, 'update'])
+            ->middleware('permission:roles.edit')
+            ->name('roles.update');
+
+        Route::delete('/roles/{role}', [RoleController::class, 'destroy'])
+            ->middleware('permission:roles.delete')
+            ->name('roles.destroy');
+
+        // User Role Management routes
+        Route::get('/users/roles', [UserRoleController::class, 'index'])
+            ->middleware('permission:roles.view')
+            ->name('users.roles.index');
+
+        Route::post('/users/roles', [UserRoleController::class, 'assign'])
+            ->middleware('permission:roles.assign-permissions')
+            ->name('users.roles.assign');
+
+        Route::delete('/users/{user}', [UserRoleController::class, 'destroy'])
+            ->middleware('permission:users.delete')
+            ->name('users.destroy');
+
         // Attachment routes (download, preview, delete)
         Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
         Route::get('/attachments/{attachment}/preview', [AttachmentController::class, 'preview'])->name('attachments.preview');

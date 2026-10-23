@@ -33,7 +33,12 @@
 --}}
 
 <x-app-layout>
-    <div class="relative w-full overflow-hidden font-inter"
+    <style>
+        @keyframes task-create-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .task-create-enter { animation: task-create-enter .5s cubic-bezier(.22,.8,.25,1) both; }
+        @media (prefers-reduced-motion: reduce) { .task-create-enter { animation: none !important; transform: none !important; } }
+    </style>
+    <div class="relative w-full overflow-hidden font-inter task-create-enter"
          @keydown.window.ctrl.enter.prevent="$refs.form.requestSubmit()"
          @keydown.window.meta.enter.prevent="$refs.form.requestSubmit()"
          x-data="{
