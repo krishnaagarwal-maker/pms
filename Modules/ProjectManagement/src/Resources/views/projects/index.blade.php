@@ -436,7 +436,7 @@
                 <div class="relative inline-block">
                     <select x-model="statusFilter"
                             class="bg-slate-50 text-slate-700 text-sm font-medium py-2 pl-3.5 pr-8 rounded-lg border border-slate-200/70 appearance-none cursor-pointer focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors">
-                        <option value="all">All Statuses</option>
+                        <option value="all">Sort: All Statuses</option>
                         <option value="ongoing">Active</option>
                         <option value="pending">Due Soon</option>
                         <option value="upcoming">Upcoming</option>
@@ -448,19 +448,7 @@
                     </div>
                 </div>
 
-                {{-- Quick Sort --}}
-                <div class="relative inline-block">
-                    <select x-model="sortBy"
-                            class="bg-slate-50 text-slate-700 text-sm font-medium py-2 pl-3.5 pr-8 rounded-lg border border-slate-200/70 appearance-none cursor-pointer focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors">
-                        <option value="deadline">Sort: Due Date</option>
-                        <option value="progress">Sort: Progress</option>
-                        <option value="name">Sort: Project Name</option>
-                        <option value="newest">Sort: Recently Added</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
-                        <span class="material-symbols-outlined text-base">sort</span>
-                    </div>
-                </div>
+         
 
                 <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
 

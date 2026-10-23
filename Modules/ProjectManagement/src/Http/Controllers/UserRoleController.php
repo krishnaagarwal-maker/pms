@@ -69,7 +69,7 @@ class UserRoleController extends Controller
         return redirect()->route('projects.users.roles.index')->with('success', 'User role updated to ' . $role->name . '.');
     }
 
-    public function destroy(Request $request, User $user): RedirectResponse
+         public function destroy(Request $request, User $user): RedirectResponse
     {
         abort_unless(
             $request->user()?->can('roles.delete'),

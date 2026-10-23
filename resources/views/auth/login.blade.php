@@ -154,16 +154,7 @@
 
         <div class="login-enter-form relative w-full max-w-md">
 
-            {{-- mobile logo --}}
-            <div class="mb-10 flex items-center gap-3 lg:hidden">
-                <span class="grid h-10 w-10 place-items-center rounded-xl bg-[#0E1A2B] text-[#E0A83B]">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M4 7h10M4 12h16M4 17h7"/>
-                    </svg>
-                </span>
-                <span class="font-display text-xl font-bold tracking-tight">{{ config('app.name', 'ProjectMS') }}</span>
-            </div>
-
+         
             <h2 class="font-display text-3xl font-bold tracking-tight">Sign in</h2>
             <p class="mt-2 text-slate-500">Pick up where your team left off.</p>
 
