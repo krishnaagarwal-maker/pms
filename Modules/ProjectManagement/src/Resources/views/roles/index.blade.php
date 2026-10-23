@@ -92,6 +92,7 @@
                                             <span class="min-w-0 truncate text-sm font-semibold text-zinc-900">{{ $roleLabel }}</span>
                                             @if ($isBuiltIn)
                                                 <span class="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Built-in</span>
+                                                
                                             @endif
                                         </div>
                                     </td>
@@ -153,7 +154,7 @@
                                                 @if ($isBuiltIn)
                                                     <span class="inline-flex h-8 cursor-not-allowed items-center gap-1.5 px-3 text-sm font-medium text-zinc-400" title="Built-in roles are protected">
                                                         <span class="material-symbols-outlined text-[16px]" aria-hidden="true">lock</span>
-                                                        Built-in
+                                                       
                                                     </span>
                                                 @else
                                                     <form action="{{ route('projects.roles.destroy', $role) }}"

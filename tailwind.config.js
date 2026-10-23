@@ -14,6 +14,9 @@ export default {
         './resources/js/**/*.js',
         // IMPORTANT: your project view lives in a module, so scan it too
         './Modules/**/resources/views/**/*.blade.php',
+        './Modules/**/Resources/views/**/*.blade.php',
+        './Modules/**/src/Resources/views/**/*.blade.php',
+        './Modules/**/*.blade.php',
         './Modules/**/resources/assets/**/*.js',
     ],
 
