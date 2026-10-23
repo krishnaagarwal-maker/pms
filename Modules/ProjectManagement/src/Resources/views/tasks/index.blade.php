@@ -115,7 +115,11 @@
 @endphp
 
 <x-app-layout>
-    <div class="min-h-screen bg-white py-space-xl font-inter text-slate-900">
+    <style>
+        @keyframes pmFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        .pm-fade-in { animation: pmFadeIn .4s ease-out both; }
+    </style>
+    <div class="min-h-screen bg-white py-space-xl font-inter text-slate-900 pm-fade-in">
         <div class="mx-auto max-w-[1600px] space-y-6 px-4 sm:px-6 lg:px-8">
 
             {{-- Page header --}}

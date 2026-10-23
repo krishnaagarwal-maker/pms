@@ -64,7 +64,11 @@
 @endphp
 
 <x-app-layout>
-    <div class="min-h-screen bg-slate-50 py-space-xl font-inter"
+    <style>
+        @keyframes pmFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        .pm-fade-in { animation: pmFadeIn .4s ease-out both; }
+    </style>
+    <div class="min-h-screen bg-slate-50 py-space-xl font-inter pm-fade-in"
          x-data="{
              filter: 'all',
              q: '',
