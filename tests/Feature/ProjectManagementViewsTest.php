@@ -199,4 +199,20 @@ class ProjectManagementViewsTest extends TestCase
         $this->assertContains('database', $notification->via($assignee));
         $this->assertSame('Task assigned: Review handoff checklist', $notification->toArray($assignee)['message']);
     }
+
+    public function test_projects_index_page_renders_four_status_stat_cards(): void
+    {
+        $viewer = User::factory()->create();
+        $viewer->givePermissionTo(['projects.view', 'tasks.view', 'tasks.assign']);
+
+        $response = $this->actingAs($viewer)
+            ->get(route('projects.index'));
+
+        $response->assertOk()
+            ->assertSeeText('Active')
+            ->assertSeeText('Due Soon')
+            ->assertSeeText('Upcoming')
+            ->assertSeeText('Ended');
+    }
 }
+

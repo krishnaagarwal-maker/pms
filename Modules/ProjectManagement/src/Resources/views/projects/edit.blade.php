@@ -222,16 +222,16 @@
                         </span>
 
                         <div class="flex items-center gap-space-sm">
-                            <a href="{{ route('projects.show', $project) }}"
+                            <!-- <a href="{{ route('projects.show', $project) }}"
                                class="rounded-xl bg-surface-container-lowest px-space-md py-2 text-label-md text-on-surface shadow-sm transition-all hover:bg-surface-container">
                                 Cancel
-                            </a>
+                            </a> -->
                             {{-- RBAC-SAVE: wrap in @can('update', $project) … @endcan once policies exist --}}
-                            <button type="submit"
+                            <!-- <button type="submit"
                                     class="flex items-center gap-2 rounded-xl bg-primary-container px-space-lg py-2 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
                                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
                                 Save Changes
-                            </button>
+                            </button> -->
                         </div>
                     </div>
                 </form>
@@ -253,7 +253,7 @@
                         {{-- Timeline burnup --}}
                         <div>
                             <div class="mb-space-xs flex items-center justify-between text-body-sm text-on-surface-variant">
-                                <span>Timeline Burnup</span>
+                                <span>Timeline</span>
                                 <template x-if="span !== null">
                                     <span class="font-semibold tabular-nums text-on-surface" x-text="elapsed + ' / ' + span + ' Days (' + pct + '%)'"></span>
                                 </template>
@@ -289,7 +289,7 @@
                         </div>
 
                        
-                    </div>
+                    </div>  
 
                     {{-- RBAC-DELETE: wrap this card in @can('projects.delete') … @endcan once permissions exist --}}
                     <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">

@@ -26,7 +26,13 @@ class ProjectController extends Controller
             ->latest()
             ->paginate(12);
 
-        return view('ProjectManagement::projects.index', compact('projects'));
+        $allProjects = Project::visibleTo($user)
+            ->with(['tasks' => function ($query) use ($user) {
+                $query->visibleTo($user);
+            }])
+            ->get();
+
+        return view('ProjectManagement::projects.index', compact('projects', 'allProjects'));
     }
 
     /**

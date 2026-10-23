@@ -79,15 +79,15 @@
             ];
         }
 
-        // Ongoing / On track
+        // Active / On track
         $daysLeft = $project->end_date ? (int) ceil($today->diffInDays($project->end_date, false)) : null;
         return [
             'key'         => 'ongoing',
-            'label'       => 'Ongoing',
+            'label'       => 'Active',
             'pill'        => 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20',
             'dot'         => 'bg-indigo-600',
             'accent'      => 'bg-indigo-600',
-            'badge_text'  => $daysLeft !== null ? $daysLeft . ' days left' : 'Target Release',
+            'badge_text'  => $daysLeft !== null ? $daysLeft . ' days left' : 'On Track',
             'badge_color' => 'text-indigo-600',
             'pulse'       => true,
             'is_risk'     => false,
@@ -119,12 +119,12 @@
             ->count();
     };
 
-    // Executive pulse summaries for current visible set
-    $activeCount = $projects->filter(fn ($p) => in_array($statusInfo($p)['key'], ['ongoing', 'pending']))->count();
-    $atRiskCount = $projects->filter(fn ($p) => $statusInfo($p)['is_risk'] || $overdueTasksCount($p) > 0)->count();
-    $avgVelocity = $projects->count() > 0 ? (int) round($projects->avg(fn ($p) => $progressFor($p))) : 0;
-    $totalTasksCount = $projects->sum(fn ($p) => $p->tasks->count());
-    $uniqueDevsCount = $projects->flatMap(fn ($p) => $p->tasks->pluck('assigned_to'))->filter()->unique()->count();
+    // Pulse summaries: 4 primary states (active, due soon, upcoming, ended)
+    $statsSource = $allProjects ?? $projects;
+    $activeCount = $statsSource->filter(fn ($p) => $statusInfo($p)['key'] === 'ongoing')->count();
+    $dueSoonCount = $statsSource->filter(fn ($p) => $statusInfo($p)['key'] === 'pending')->count();
+    $upcomingCount = $statsSource->filter(fn ($p) => $statusInfo($p)['key'] === 'upcoming')->count();
+    $endedCount = $statsSource->filter(fn ($p) => in_array($statusInfo($p)['key'], ['overdue', 'completed']))->count();
 
     // Color avatars generator palette
     $avatarColors = [
@@ -224,7 +224,9 @@
              matches(status, haystack) {
                  const q = this.search.trim().toLowerCase();
                  const matchesSearch = !q || haystack.includes(q);
-                 const matchesStatus = this.statusFilter === 'all' || this.statusFilter === status;
+                 const matchesStatus = this.statusFilter === 'all'
+                     || this.statusFilter === status
+                     || (this.statusFilter === 'overdue' && (status === 'overdue' || status === 'completed'));
                  return matchesSearch && matchesStatus;
              },
 
@@ -275,18 +277,21 @@
 
         {{-- Top Stats Strip / Visual Pulse --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {{-- Active Initiatives --}}
-            <div class="projects-index-enter bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-slate-300 transition-all">
+            {{-- 1. Active Projects --}}
+            <div role="button" tabindex="0"
+                 @click="statusFilter = (statusFilter === 'ongoing' ? 'all' : 'ongoing')"
+                 @keydown.enter="statusFilter = (statusFilter === 'ongoing' ? 'all' : 'ongoing')"
+                 :class="statusFilter === 'ongoing' ? 'ring-2 ring-indigo-500 border-indigo-400 bg-indigo-50/25 shadow-md -translate-y-0.5' : 'hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5'"
+                 class="projects-index-enter bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between transition-all cursor-pointer select-none">
                 <div class="flex flex-col">
-                    <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Active Initiatives</span>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Active</span>
+                        <span x-show="statusFilter === 'ongoing'" class="text-[10px] font-bold text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded-full leading-none">Filtered</span>
+                    </div>
                     <div class="flex items-baseline gap-2 mt-1">
                         <span class="text-3xl font-bold tracking-tight text-slate-900">{{ $activeCount }}</span>
-                        <span class="font-mono text-xs font-semibold text-emerald-600">
-                            @if ($projects->total() > 0)
-                                {{ $projects->total() }} total
-                            @else
-                                +0 this quarter
-                            @endif
+                        <span class="font-mono text-xs font-semibold text-indigo-600">
+                            {{ $activeCount === 1 ? '1 on track' : $activeCount . ' on track' }}
                         </span>
                     </div>
                 </div>
@@ -295,53 +300,81 @@
                 </div>
             </div>
 
-            {{-- Task Velocity --}}
-            <div class="projects-index-enter bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-slate-300 transition-all" style="animation-delay: 60ms">
+            {{-- 2. Due Soon Projects --}}
+            <div role="button" tabindex="0"
+                 @click="statusFilter = (statusFilter === 'pending' ? 'all' : 'pending')"
+                 @keydown.enter="statusFilter = (statusFilter === 'pending' ? 'all' : 'pending')"
+                 :class="statusFilter === 'pending' ? 'ring-2 ring-amber-500 border-amber-400 bg-amber-50/25 shadow-md -translate-y-0.5' : 'hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5'"
+                 class="projects-index-enter bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between transition-all cursor-pointer select-none"
+                 style="animation-delay: 60ms">
                 <div class="flex flex-col">
-                    <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Task Velocity</span>
-                    <div class="flex items-baseline gap-2 mt-1">
-                        <span class="text-3xl font-bold tracking-tight text-slate-900">{{ $avgVelocity }}%</span>
-                        <span class="font-mono text-xs text-slate-500">avg. completion</span>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Due Soon</span>
+                        <span x-show="statusFilter === 'pending'" class="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full leading-none">Filtered</span>
                     </div>
-                </div>
-                <div class="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shadow-sm shadow-emerald-600/5">
-                    <span class="material-symbols-outlined text-2xl">show_chart</span>
-                </div>
-            </div>
-
-            {{-- At Risk / Review --}}
-            <div class="projects-index-enter bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-slate-300 transition-all" style="animation-delay: 120ms">
-                <div class="flex flex-col">
-                    <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">At Risk / Review</span>
                     <div class="flex items-baseline gap-2 mt-1">
-                        <span class="text-3xl font-bold tracking-tight {{ $atRiskCount > 0 ? 'text-rose-600' : 'text-slate-900' }}">
-                            {{ $atRiskCount }}
+                        <span class="text-3xl font-bold tracking-tight {{ $dueSoonCount > 0 ? 'text-amber-600' : 'text-slate-900' }}">
+                            {{ $dueSoonCount }}
                         </span>
-                        <span class="font-mono text-xs {{ $atRiskCount > 0 ? 'text-rose-600 font-semibold' : 'text-slate-500' }}">
-                            {{ $atRiskCount > 0 ? 'near milestone' : 'on track' }}
+                        <span class="font-mono text-xs {{ $dueSoonCount > 0 ? 'text-amber-600 font-semibold' : 'text-slate-500' }}">
+                            {{ $dueSoonCount > 0 ? 'within 7 days' : 'none this week' }}
                         </span>
                     </div>
                 </div>
-                <div class="w-11 h-11 rounded-xl {{ $atRiskCount > 0 ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-slate-50 border-slate-100 text-slate-500' }} border flex items-center justify-center shadow-sm">
-                    <span class="material-symbols-outlined text-2xl">priority_high</span>
+                <div class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shadow-sm shadow-amber-600/5">
+                    <span class="material-symbols-outlined text-2xl">schedule</span>
                 </div>
             </div>
 
-            {{-- Engineering Capacity / Tasks --}}
-            <div class="projects-index-enter bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between hover:border-slate-300 transition-all" style="animation-delay: 180ms">
+            {{-- 3. Upcoming Projects --}}
+            <div role="button" tabindex="0"
+                 @click="statusFilter = (statusFilter === 'upcoming' ? 'all' : 'upcoming')"
+                 @keydown.enter="statusFilter = (statusFilter === 'upcoming' ? 'all' : 'upcoming')"
+                 :class="statusFilter === 'upcoming' ? 'ring-2 ring-sky-500 border-sky-400 bg-sky-50/25 shadow-md -translate-y-0.5' : 'hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5'"
+                 class="projects-index-enter bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between transition-all cursor-pointer select-none"
+                 style="animation-delay: 120ms">
                 <div class="flex flex-col">
-                    <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Engineering Capacity</span>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Upcoming</span>
+                        <span x-show="statusFilter === 'upcoming'" class="text-[10px] font-bold text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-full leading-none">Filtered</span>
+                    </div>
                     <div class="flex items-baseline gap-2 mt-1">
                         <span class="text-3xl font-bold tracking-tight text-slate-900">
-                            {{ $totalTasksCount > 0 ? $totalTasksCount : ($projects->total() > 0 ? $projects->total() * 2 : 0) }}
+                            {{ $upcomingCount }}
                         </span>
-                        <span class="font-mono text-xs text-slate-500">
-                            {{ $uniqueDevsCount > 0 ? $uniqueDevsCount . ' devs allocated' : 'tasks recorded' }}
+                        <span class="font-mono text-xs {{ $upcomingCount > 0 ? 'text-sky-600 font-semibold' : 'text-slate-500' }}">
+                            {{ $upcomingCount > 0 ? 'starting soon' : 'none scheduled' }}
                         </span>
                     </div>
                 </div>
                 <div class="w-11 h-11 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 shadow-sm shadow-sky-600/5">
-                    <span class="material-symbols-outlined text-2xl">group_work</span>
+                    <span class="material-symbols-outlined text-2xl">event_upcoming</span>
+                </div>
+            </div>
+
+            {{-- 4. Ended Projects --}}
+            <div role="button" tabindex="0"
+                 @click="statusFilter = (statusFilter === 'overdue' ? 'all' : 'overdue')"
+                 @keydown.enter="statusFilter = (statusFilter === 'overdue' ? 'all' : 'overdue')"
+                 :class="statusFilter === 'overdue' ? 'ring-2 ring-rose-500 border-rose-400 bg-rose-50/25 shadow-md -translate-y-0.5' : 'hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5'"
+                 class="projects-index-enter bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between transition-all cursor-pointer select-none"
+                 style="animation-delay: 180ms">
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ended</span>
+                        <span x-show="statusFilter === 'overdue'" class="text-[10px] font-bold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-full leading-none">Filtered</span>
+                    </div>
+                    <div class="flex items-baseline gap-2 mt-1">
+                        <span class="text-3xl font-bold tracking-tight {{ $endedCount > 0 ? 'text-rose-600' : 'text-slate-900' }}">
+                            {{ $endedCount }}
+                        </span>
+                        <span class="font-mono text-xs {{ $endedCount > 0 ? 'text-rose-600 font-semibold' : 'text-slate-500' }}">
+                            {{ $endedCount > 0 ? 'past deadline' : 'none ended' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="w-11 h-11 rounded-xl {{ $endedCount > 0 ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-slate-50 border-slate-100 text-slate-500' }} border flex items-center justify-center shadow-sm">
+                    <span class="material-symbols-outlined text-2xl">task_alt</span>
                 </div>
             </div>
         </div>
@@ -404,11 +437,11 @@
                     <select x-model="statusFilter"
                             class="bg-slate-50 text-slate-700 text-sm font-medium py-2 pl-3.5 pr-8 rounded-lg border border-slate-200/70 appearance-none cursor-pointer focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors">
                         <option value="all">All Statuses</option>
-                        <option value="ongoing">Ongoing</option>
-                        <option value="pending">Due Soon / In Review</option>
+                        <option value="ongoing">Active</option>
+                        <option value="pending">Due Soon</option>
                         <option value="upcoming">Upcoming</option>
+                        <option value="overdue">Ended</option>
                         <option value="completed">Completed</option>
-                        <option value="overdue">Ended / Overdue</option>
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
                         <span class="material-symbols-outlined text-base">expand_more</span>
@@ -812,7 +845,7 @@
             </div>
 
             {{-- Empty search results notice --}}
-            <div x-show="search.length > 0 && $el.closest('[x-data]').querySelectorAll('[x-show*=\'matches\']:not([style*=\'display: none\'])').length === 0"
+            <div x-show="(search.length > 0 || statusFilter !== 'all') && $el.closest('[x-data]').querySelectorAll('[x-show*=\'matches\']:not([style*=\'display: none\'])').length === 0"
                  class="hidden bg-white rounded-xl p-8 border border-slate-200 text-center"
                  :class="{ 'hidden': false }">
                 <span class="material-symbols-outlined text-4xl text-slate-300">search_off</span>
