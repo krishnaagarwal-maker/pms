@@ -5,6 +5,50 @@
 @endphp
 
 <x-app-layout>
+    <style>
+        [x-cloak]{display:none !important}
+
+        @keyframes project-edit-enter {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes project-glow-pulse {
+            0%, 100% { opacity: .4; transform: scale(1); }
+            50% { opacity: .7; transform: scale(1.05); }
+        }
+
+        @keyframes project-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .project-edit-enter {
+            animation: project-edit-enter .55s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .project-glow-1 {
+            animation: project-glow-pulse 8s ease-in-out infinite;
+        }
+
+        .project-glow-2 {
+            animation: project-glow-pulse 10s ease-in-out infinite 2s;
+        }
+
+        .project-shimmer-bar {
+            background: linear-gradient(90deg, #4f46e5 0%, #06b6d4 50%, #10b981 100%);
+            background-size: 200% 100%;
+            animation: project-shimmer 6s linear infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .project-edit-enter,
+            .project-glow-1,
+            .project-glow-2,
+            .project-shimmer-bar { animation: none !important; transform: none !important; }
+        }
+    </style>
+
     <div class="relative w-full overflow-hidden font-inter"
          @keydown.window.ctrl.s.prevent="$refs.form.requestSubmit()"
          @keydown.window.meta.s.prevent="$refs.form.requestSubmit()"
@@ -59,13 +103,13 @@
          }">
 
         {{-- Soft background glow --}}
-        <div class="pointer-events-none absolute -left-20 -top-32 h-96 w-96 rounded-full bg-primary/5 blur-3xl"></div>
-        <div class="pointer-events-none absolute right-10 top-20 h-80 w-80 rounded-full bg-tertiary-fixed/15 blur-3xl"></div>
+        <div class="project-glow-1 pointer-events-none absolute -left-20 -top-32 h-96 w-96 rounded-full bg-primary/10 blur-3xl"></div>
+        <div class="project-glow-2 pointer-events-none absolute right-10 top-20 h-80 w-80 rounded-full bg-tertiary-fixed/20 blur-3xl"></div>
 
         <div class="relative mx-auto max-w-7xl px-6 py-space-xl lg:px-12">
 
             {{-- Top bar --}}
-            <div class="mb-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
+            <div class="project-edit-enter mb-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
                 <div class="flex min-w-0 flex-col gap-space-xs">
                     <nav class="flex items-center gap-2 text-label-md text-on-surface-variant" aria-label="Breadcrumb">
                         <a href="{{ route('projects.index') }}" class="flex items-center gap-1 transition-colors hover:text-primary">
@@ -110,12 +154,13 @@
             <div class="grid grid-cols-1 items-start gap-gutter lg:grid-cols-12">
 
                 {{-- LEFT: form --}}
-                <form id="project-form" x-ref="form" action="{{ route('projects.update', $project) }}" method="POST"
-                      class="relative overflow-hidden rounded-xl bg-surface-container-lowest shadow-sm lg:col-span-8">
+                <form id="project-form" x-ref="form" action="{{ route('projects.update', $project) }}" method="POST" enctype="multipart/form-data"
+                      class="project-edit-enter relative overflow-hidden rounded-xl bg-surface-container-lowest shadow-sm lg:col-span-8"
+                      style="animation-delay: 80ms">
                     @csrf
                     @method('PUT')
 
-                    <div class="h-1.5 w-full bg-gradient-to-r from-primary-container via-secondary to-tertiary-fixed-dim"></div>
+                    <div class="project-shimmer-bar h-1.5 w-full"></div>
 
                     <div class="flex flex-col gap-space-lg p-space-lg">
 
@@ -211,7 +256,13 @@
                             </div>
                         </div>
 
-                        
+                        {{-- Attachments --}}
+                        <div class="border-t border-surface-container-low pt-space-md">
+                            @include('ProjectManagement::attachments._form-upload', [
+                                'label' => 'Project Files & Attachments',
+                                'existingAttachments' => $project->attachments,
+                            ])
+                        </div>
                     </div>
 
                     {{-- Form footer --}}
@@ -239,7 +290,8 @@
              
                 <aside class="flex flex-col gap-space-lg lg:col-span-4">
 
-                    <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+                    <div class="project-edit-enter rounded-xl bg-surface-container-lowest p-space-lg shadow-sm"
+                         style="animation-delay: 160ms">
                         <div class="mb-space-md flex items-center justify-between">
                             <h3 class="text-title-md text-on-surface">Preview</h3>
                             <span class="inline-flex items-center gap-1.5 rounded-full bg-surface-container-high px-2.5 py-0.5 text-label-sm text-on-surface">
@@ -274,15 +326,15 @@
 
                         {{-- Task stats (live from the database) --}}
                         <div class="mt-space-lg grid grid-cols-3 gap-space-sm">
-                            <div class="rounded-xl bg-surface-container-low p-space-sm text-center">
+                            <div class="rounded-xl bg-surface-container-low p-space-sm text-center transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-sm">
                                 <div class="text-headline-sm font-bold text-on-surface">{{ $totalTasks }}</div>
                                 <div class="text-label-sm text-on-surface-variant">{{ Str::plural('Task', $totalTasks) }}</div>
                             </div>
-                            <div class="rounded-xl bg-surface-container-low p-space-sm text-center">
+                            <div class="rounded-xl bg-surface-container-low p-space-sm text-center transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-sm">
                                 <div class="text-headline-sm font-bold text-tertiary">{{ $completedTasks }}</div>
                                 <div class="text-label-sm text-on-surface-variant">Closed ({{ $closedPct }}%)</div>
                             </div>
-                            <div class="rounded-xl bg-surface-container-low p-space-sm text-center">
+                            <div class="rounded-xl bg-surface-container-low p-space-sm text-center transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-sm">
                                 <div class="text-headline-sm font-bold text-primary">{{ $totalTasks - $completedTasks }}</div>
                                 <div class="text-label-sm text-on-surface-variant">Open</div>
                             </div>
@@ -292,7 +344,8 @@
                     </div>  
 
                     {{-- RBAC-DELETE: wrap this card in @can('projects.delete') … @endcan once permissions exist --}}
-                    <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+                    <div class="project-edit-enter rounded-xl bg-surface-container-lowest p-space-lg shadow-sm"
+                         style="animation-delay: 240ms">
                         <div class="mb-space-sm flex items-center gap-space-xs text-error">
                             <span class="material-symbols-outlined text-[22px]" aria-hidden="true">warning</span>
                           

@@ -1,39 +1,10 @@
-{{-- View: tasks.create (route: projects.tasks.create) --}}
-
-{{--
-|--------------------------------------------------------------------------
-| RBAC NOTES (dynamic roles & permissions — partly wired up)
-|--------------------------------------------------------------------------
-| Planned: default roles "manager" and "team member", plus custom roles
-| with custom permissions.
-|
-| ASSIGNEE: ACTIVE. Renders only when the user has the 'tasks.assign'
-| permission AND the controller passes $users. Nothing breaks if either
-| is missing; the section just doesn't show.
-|
-| ROLES / PERMISSIONS: COMMENTED OUT below (search for RBAC-ROLES) because
-| they need roles/permissions tables that don't exist yet.
-|
-| When RBAC exists:
-|   1. RBAC-ROLES     : enable the role + effective-permission section
-|   2. RBAC-INSPECTOR : role summary card in the sidebar
-|   3. RBAC-CREATE    : wrap the Create Task buttons in
-|                       @can('create', [App\Models\Task::class, $project])
-|      (an undefined ability returns false, so do NOT add @can before the
-|      permission/policy exists, or the buttons will disappear)
-|   4. Controller create(): pass
-|        'users'       => $project->members (or User::orderBy('name')->get()),
-|        'roles'       => Role::with('permissions')->get(),
-|        'permissions' => Permission::where('scope', 'task')->get()
-|   5. Controller store():  $this->authorize('create', [Task::class, $project]);
-|        'assigned_to' => ['nullable', 'exists:users,id'],
-|        'role_id'     => ['nullable', 'exists:roles,id'],
-|        'permissions' => ['nullable', 'array'],
-|        'permissions.*' => ['exists:permissions,id'],
---}}
-
 <x-app-layout>
-    <div class="relative w-full overflow-hidden font-inter"
+    <style>
+        @keyframes task-create-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .task-create-enter { animation: task-create-enter .5s cubic-bezier(.22,.8,.25,1) both; }
+        @media (prefers-reduced-motion: reduce) { .task-create-enter { animation: none !important; transform: none !important; } }
+    </style>
+    <div class="relative w-full overflow-hidden font-inter task-create-enter"
          @keydown.window.ctrl.enter.prevent="$refs.form.requestSubmit()"
          @keydown.window.meta.enter.prevent="$refs.form.requestSubmit()"
          x-data="{
@@ -128,8 +99,8 @@
                     @can('tasks.create')
                     <button type="submit" form="task-form"
                             class="flex items-center gap-2 rounded-xl bg-primary-container px-space-lg py-2 text-label-md text-on-primary shadow-md transition-all hover:bg-primary hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
-                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_task</span>
-                        Create Task
+                        
+                        + Create Task
                         <kbd class="ml-1 hidden rounded bg-primary/30 px-1.5 py-0.5 font-code-sm text-[10px] text-on-primary-container sm:inline">Ctrl ↵</kbd>
                     </button>
                     @endcan
@@ -140,7 +111,7 @@
 
                 {{-- LEFT: form --}}
                 <form id="task-form" x-ref="form"
-                      action="{{ route('projects.tasks.store', $project) }}" method="POST"
+                      action="{{ route('projects.tasks.store', $project) }}" method="POST" enctype="multipart/form-data"
                       class="flex flex-col gap-space-lg lg:col-span-8">
                     @csrf
 
@@ -356,67 +327,21 @@
                         @endisset
                     @endcan
 
-                    {{--
-                    |----------------------------------------------------------------------
-                    | RBAC-ROLES: Role & effective permissions (COMMENTED OUT)
-                    |----------------------------------------------------------------------
-                    | Needs $roles (with permissions), $permissions, nullable role_id on
-                    | tasks, and a task_permission pivot if per-task overrides are saved.
-                    | Default roles: manager, team member. Admins can add custom roles.
-                    |
-                    | To enable: remove the Blade comment markers around this block.
-                    |
-                    | @can('tasks.assign')
-                    | <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm"
-                    |      x-data="{
-                    |          role: @js((string) old('role_id', '')),
-                    |          rolePermissions: @js($roles->mapWithKeys(fn ($r) => [(string) $r->id => $r->permissions->pluck('id')])),
-                    |          selected: @js(old('permissions', [])),
-                    |          pickRole(id) { this.role = String(id); this.selected = [...(this.rolePermissions[id] ?? [])]; }
-                    |      }">
-                    |     <div class="mb-space-md flex items-center justify-between">
-                    |         <div class="flex items-center gap-space-xs">
-                    |             <span class="material-symbols-outlined text-[22px] text-primary">verified_user</span>
-                    |             <h2 class="text-title-md text-on-surface">Role & Governance</h2>
-                    |         </div>
-                    |         @can('roles.manage')
-                    |             <a href="{{ route('roles.create') }}" class="text-label-sm text-primary hover:underline">+ Create custom role</a>
-                    |         @endcan
-                    |     </div>
-                    |
-                    |     <span class="mb-space-xs block text-label-md text-on-surface">Assigned Task Scope Role</span>
-                    |     <div class="mb-space-md grid grid-cols-1 gap-space-sm md:grid-cols-3">
-                    |         @foreach ($roles as $role)
-                    |             <label class="cursor-pointer">
-                    |                 <input type="radio" name="role_id" value="{{ $role->id }}" class="peer sr-only"
-                    |                        @click="pickRole({{ $role->id }})" @checked(old('role_id') == $role->id)>
-                    |                 <span class="block rounded-xl bg-surface-container-low p-space-md transition-all peer-checked:bg-primary-fixed/50 peer-checked:shadow-[0_0_0_2px_rgba(79,70,229,1)]">
-                    |                     <span class="flex items-center justify-between">
-                    |                         <span class="text-title-sm text-on-surface">{{ $role->name }}</span>
-                    |                         <span class="font-code-sm text-[10px] text-primary">{{ $role->permissions->count() }}/{{ $permissions->count() }} perms</span>
-                    |                     </span>
-                    |                     <span class="mt-1 block text-body-sm text-on-surface-variant">{{ $role->description }}</span>
-                    |                 </span>
-                    |             </label>
-                    |         @endforeach
-                    |     </div>
-                    |
-                    |     <span class="mb-space-xs block text-label-md text-on-surface">Effective Permissions (task scope)</span>
-                    |     <div class="grid grid-cols-1 gap-space-sm md:grid-cols-2">
-                    |         @foreach ($permissions as $permission)
-                    |             <label class="flex items-center justify-between gap-3 rounded-xl bg-surface-container-low p-space-sm">
-                    |                 <span class="text-title-sm text-on-surface">{{ $permission->label }}</span>
-                    |                 <input type="checkbox" name="permissions[]" value="{{ $permission->id }}"
-                    |                        :checked="selected.includes({{ $permission->id }})"
-                    |                        class="h-4 w-4 rounded border-outline-variant text-primary-container focus:ring-primary-container/30">
-                    |             </label>
-                    |         @endforeach
-                    |     </div>
-                    |
-                    |     @error('role_id') <p class="mt-1.5 text-body-sm text-error">{{ $message }}</p> @enderror
-                    | </div>
-                    | @endcan
-                    --}}
+                    {{-- Attachments --}}
+                    <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+                        <div class="mb-space-md flex items-center justify-between">
+                            <div class="flex items-center gap-space-xs">
+                                <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">attach_file</span>
+                                <h2 class="text-title-md text-on-surface">Task Attachments</h2>
+                            </div>
+                          
+                        </div>
+
+                        @include('ProjectManagement::attachments._form-upload', [
+                            'label' => 'Attach Screenshots, Logs, Specs or Files',
+                        ])
+                    </div>
+
                 </form>
 
                 {{-- RIGHT: live preview --}}
@@ -474,24 +399,7 @@
                         </p>
                     </div>
 
-                    {{--
-                    | RBAC-INSPECTOR: role summary card (COMMENTED OUT)
-                    | Lists each role (manager, team member, custom roles) with a short
-                    | description of what it can do on this task.
-                    |
-                    | <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
-                    |     <div class="mb-space-md flex items-center justify-between">
-                    |         <h3 class="text-title-md text-on-surface">Role Summary</h3>
-                    |         <span class="rounded-full bg-primary-fixed px-2 py-0.5 font-code-sm text-[10px] text-on-primary-fixed">PRJ-{{ str_pad($project->id, 3, '0', STR_PAD_LEFT) }}</span>
-                    |     </div>
-                    |     @foreach ($roles as $role)
-                    |         <div class="mb-space-sm rounded-xl bg-surface-container-low p-space-sm">
-                    |             <div class="text-title-sm text-on-surface">{{ $role->name }}</div>
-                    |             <p class="text-body-sm text-on-surface-variant">{{ $role->description }}</p>
-                    |         </div>
-                    |     @endforeach
-                    | </div>
-                    --}}
+                    
 
                     <div class="rounded-xl bg-primary-fixed/40 p-space-md shadow-sm">
                         <div class="mb-space-xs flex items-center gap-space-xs text-primary">

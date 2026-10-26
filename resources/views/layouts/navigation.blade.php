@@ -1,8 +1,8 @@
 {{-- resources/views/layouts/navigation.blade.php --}}
 {{--
-| Light-blue top bar + a command palette (Ctrl/Cmd + K) for jumping anywhere.
-| Needs Alpine.js v3 (ships with Breeze) and the Material Symbols font.
-| Give your layout's <main> the id "main-content" so the skip link has a target.
+|| Light-blue top bar + a command palette (Ctrl/Cmd + K) for jumping anywhere.
+|| Needs Alpine.js v3 (ships with Breeze) and the Material Symbols font.
+|| Give your layout's <main> the id "main-content" so the skip link has a target.
 --}}
 
 @php
@@ -117,7 +117,7 @@
                     @endforeach
                 </div>
             </div>
-
+    
             {{-- Desktop actions --}}
             <div class="hidden items-center gap-3 md:flex">
                 {{-- Palette trigger --}}
@@ -129,8 +129,90 @@
                     <kbd class="hidden rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-code-sm text-[11px] text-slate-500 lg:inline" x-text="isMac ? '⌘K' : 'Ctrl K'">Ctrl K</kbd>
                 </button>
 
-               
+                {{-- Notifications --}}
+                @php
+                    $navNotifications = $navUser ? $navUser->notifications()->latest()->limit(6)->get() : collect();
+                    $navUnreadCount   = $navUser ? (int) $navUser->unreadNotifications()->count() : 0;
+                    $navUnreadBadge   = $navUnreadCount > 9 ? '9+' : (string) $navUnreadCount;
+                    $navCanReadAll    = \Illuminate\Support\Facades\Route::has('notifications.read-all');
+                    $safeNavLink      = fn ($l) => is_string($l) && ! \Illuminate\Support\Str::startsWith($l, '//') && \Illuminate\Support\Str::startsWith($l, ['/', 'http://', 'https://']) ? $l : route('dashboard');
+                @endphp
+                <div x-data="{ open: false }" x-on:keydown.escape.window="open = false" class="relative">
+                    <button type="button"
+                            x-on:click="open = !open"
+                            class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/40 bg-white/55 text-slate-600 shadow-sm ring-1 ring-slate-200/50 transition hover:bg-white/75 hover:text-slate-900 {{ $ring }}"
+                            aria-haspopup="true"
+                            aria-controls="nav-notification-panel"
+                            x-bind:aria-expanded="open.toString()">
+                        <span class="sr-only">Notifications{{ $navUnreadCount > 0 ? ', ' . $navUnreadCount . ' unread' : '' }}</span>
+                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">notifications</span>
+                        @if ($navUnreadCount > 0)
+                            <span aria-hidden="true" class="absolute -right-1 -top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+                                {{ $navUnreadBadge }}
+                            </span>
+                        @endif
+                    </button>
 
+                    <div id="nav-notification-panel"
+                         x-show="open"
+                         x-cloak
+                         x-on:click.outside="open = false"
+                         role="region"
+                         aria-label="Notifications"
+                         class="absolute right-0 z-50 mt-2 w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-100"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 translate-y-1">
+                        <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                            <div class="text-sm font-semibold text-slate-800">
+                                Notifications
+                                @if ($navUnreadCount > 0)
+                                    <span class="ml-1 rounded-full bg-slate-900 px-1.5 py-0.5 text-xs font-medium text-white">{{ $navUnreadCount }} new</span>
+                                @endif
+                            </div>
+                            @if ($navNotifications->isNotEmpty() && $navUnreadCount > 0 && $navCanReadAll)
+                                <form action="{{ route('notifications.read-all') }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="rounded text-xs font-semibold text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline {{ $ringLite }}">
+                                        Mark all as read
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+
+                        <div class="max-h-80 overflow-y-auto">
+                            @forelse ($navNotifications as $notification)
+                                @php
+                                    $nData    = $notification->data ?? [];
+                                    $nMessage = $nData['message'] ?? 'System update';
+                                    $nLink    = $safeNavLink($nData['link'] ?? null);
+                                    $nUnread  = is_null($notification->read_at);
+                                @endphp
+                                <a href="{{ $nLink }}"
+                                   class="block border-b border-slate-100 px-4 py-3 transition last:border-b-0 hover:bg-slate-50 {{ $nUnread ? 'bg-indigo-50/40' : '' }} {{ $ringLite }}">
+                                    <div class="flex items-start gap-3">
+                                        <span class="mt-1.5 inline-flex h-2 w-2 shrink-0 rounded-full {{ $nUnread ? 'bg-indigo-600' : 'bg-slate-300' }}">
+                                            <span class="sr-only">{{ $nUnread ? 'Unread' : 'Read' }}</span>
+                                        </span>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm {{ $nUnread ? 'font-semibold text-slate-900' : 'font-medium text-slate-700' }}">{{ $nMessage }}</p>
+                                            <p class="mt-1 text-xs text-slate-500">{{ $notification->created_at?->diffForHumans() ?? 'just now' }}</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            @empty
+                                <div class="px-4 py-8 text-center">
+                                    <span class="material-symbols-outlined text-[28px] text-slate-300" aria-hidden="true">notifications_off</span>
+                                    <p class="mt-1 text-sm font-medium text-slate-700">You are all caught up</p>
+                                    <p class="text-xs text-slate-500">New activity will show up here.</p>
+                                </div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
                 <x-dropdown align="right" width="56">
                     <x-slot name="trigger">
                         <button type="button"
@@ -172,6 +254,83 @@
 
             {{-- Mobile buttons --}}
             <div class="flex items-center gap-1 md:hidden">
+                <div x-data="{ open: false }" x-on:keydown.escape.window="open = false" class="relative">
+                    <button type="button"
+                            x-on:click="open = !open"
+                            class="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-sky-200/60 hover:text-slate-900 {{ $ring }}"
+                            aria-haspopup="true"
+                            aria-controls="nav-notification-panel-mobile"
+                            x-bind:aria-expanded="open.toString()">
+                        <span class="sr-only">Notifications{{ $navUnreadCount > 0 ? ', ' . $navUnreadCount . ' unread' : '' }}</span>
+                        <span class="material-symbols-outlined text-[22px]" aria-hidden="true">notifications</span>
+                        @if ($navUnreadCount > 0)
+                            <span aria-hidden="true" class="absolute 1 top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+                                {{ $navUnreadBadge }}
+                            </span>
+                        @endif
+                    </button>
+
+                    <div id="nav-notification-panel-mobile"
+                         x-show="open"
+                         x-cloak
+                         x-on:click.outside="open = false"
+                         role="region"
+                         aria-label="Notifications"
+                         class="fixed inset-x-4 top-16 z-50 mt-1 max-h-[70vh] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-100"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 translate-y-1">
+                        <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                            <div class="text-sm font-semibold text-slate-800">
+                                Notifications
+                                @if ($navUnreadCount > 0)
+                                    <span class="ml-1 rounded-full bg-slate-900 px-1.5 py-0.5 text-xs font-medium text-white">{{ $navUnreadCount }} new</span>
+                                @endif
+                            </div>
+                            @if ($navNotifications->isNotEmpty() && $navUnreadCount > 0 && $navCanReadAll)
+                                <form action="{{ route('notifications.read-all') }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="rounded text-xs font-semibold text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline {{ $ringLite }}">
+                                        Mark all
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+
+                        <div class="max-h-64 overflow-y-auto">
+                            @forelse ($navNotifications as $notification)
+                                @php
+                                    $nData    = $notification->data ?? [];
+                                    $nMessage = $nData['message'] ?? 'System update';
+                                    $nLink    = $safeNavLink($nData['link'] ?? null);
+                                    $nUnread  = is_null($notification->read_at);
+                                @endphp
+                                <a href="{{ $nLink }}"
+                                   class="block border-b border-slate-100 px-4 py-3 transition last:border-b-0 hover:bg-slate-50 {{ $nUnread ? 'bg-indigo-50/40' : '' }} {{ $ringLite }}">
+                                    <div class="flex items-start gap-3">
+                                        <span class="mt-1.5 inline-flex h-2 w-2 shrink-0 rounded-full {{ $nUnread ? 'bg-indigo-600' : 'bg-slate-300' }}">
+                                            <span class="sr-only">{{ $nUnread ? 'Unread' : 'Read' }}</span>
+                                        </span>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm {{ $nUnread ? 'font-semibold text-slate-900' : 'font-medium text-slate-700' }}">{{ $nMessage }}</p>
+                                            <p class="mt-1 text-xs text-slate-500">{{ $notification->created_at?->diffForHumans() ?? 'just now' }}</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            @empty
+                                <div class="px-4 py-8 text-center">
+                                    <span class="material-symbols-outlined text-[28px] text-slate-300" aria-hidden="true">notifications_off</span>
+                                    <p class="mt-1 text-sm font-medium text-slate-700">You are all caught up</p>
+                                    <p class="text-xs text-slate-500">New activity will show up here.</p>
+                                </div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+
                 <button type="button" x-on:click="openPalette()"
                         class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-sky-200/60 hover:text-slate-900 {{ $ring }}">
                     <span class="sr-only">Open search</span>
@@ -254,59 +413,58 @@
     </div>
 
     {{-- Command palette --}}
-    <div x-show="palette" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center px-4 pt-[12vh]" role="dialog" aria-modal="true" aria-label="Search and jump to">
-        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-             x-on:click="palette = false"
-             x-show="palette"
-             x-transition.opacity.duration.150ms></div>
+    <div x-show="palette" x-cloak class="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Search and jump to"
+         x-on:click="palette = false">
+        <div class="flex items-start justify-center px-4 pt-[12vh] h-full w-full">
+            <div class="relative w-full max-w-xl overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-900/10"
+                 x-show="palette"
+                 x-on:click.stop
+                 x-transition:enter="transition ease-out duration-150"
+                 x-transition:enter-start="opacity-0 scale-95"
+                 x-transition:enter-end="opacity-100 scale-100">
 
-        <div class="relative w-full max-w-xl overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-900/10"
-             x-show="palette"
-             x-transition:enter="transition ease-out duration-150"
-             x-transition:enter-start="opacity-0 scale-95"
-             x-transition:enter-end="opacity-100 scale-100">
+                <div class="flex items-center gap-3 border-b border-slate-200 px-4">
+                    <span class="material-symbols-outlined text-[20px] text-slate-400" aria-hidden="true">search</span>
+                    <input x-ref="q" x-model="q" type="text" autocomplete="off" spellcheck="false"
+                           placeholder="Search pages and actions…"
+                           aria-label="Search pages and actions"
+                           x-on:input="idx = 0"
+                           x-on:keydown.arrow-down.prevent="move(1)"
+                           x-on:keydown.arrow-up.prevent="move(-1)"
+                           x-on:keydown.enter.prevent="results[idx] && go(results[idx])"
+                           class="h-14 w-full border-0 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0">
+                    <button type="button" x-on:click="palette = false"
+                            class="rounded-md border border-slate-200 px-1.5 py-0.5 font-code-sm text-[11px] text-slate-500 hover:bg-slate-50 {{ $ringLite }}">Esc</button>
+                </div>
 
-            <div class="flex items-center gap-3 border-b border-slate-200 px-4">
-                <span class="material-symbols-outlined text-[20px] text-slate-400" aria-hidden="true">search</span>
-                <input x-ref="q" x-model="q" type="text" autocomplete="off" spellcheck="false"
-                       placeholder="Search pages and actions…"
-                       aria-label="Search pages and actions"
-                       x-on:input="idx = 0"
-                       x-on:keydown.arrow-down.prevent="move(1)"
-                       x-on:keydown.arrow-up.prevent="move(-1)"
-                       x-on:keydown.enter.prevent="results[idx] && go(results[idx])"
-                       class="h-14 w-full border-0 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0">
-                <button type="button" x-on:click="palette = false"
-                        class="rounded-md border border-slate-200 px-1.5 py-0.5 font-code-sm text-[11px] text-slate-500 hover:bg-slate-50 {{ $ringLite }}">Esc</button>
-            </div>
+                <div class="max-h-80 overflow-y-auto p-2" role="listbox">
+                    <template x-for="(item, i) in results" :key="item.id">
+                        <div>
+                            <p x-show="i === 0 || results[i - 1].group !== item.group"
+                               class="px-3 pb-1 pt-3 text-xs font-semibold text-slate-400" x-text="item.group"></p>
+                            <button type="button" role="option"
+                                    x-bind:id="'cmd-' + i"
+                                    x-bind:aria-selected="(i === idx).toString()"
+                                    x-on:click="go(item)"
+                                    x-on:mouseenter="idx = i"
+                                    x-bind:class="i === idx ? 'bg-indigo-50 text-slate-900' : 'text-slate-600'"
+                                    class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium focus:outline-none">
+                                <span class="material-symbols-outlined text-[20px]" x-bind:class="i === idx ? 'text-indigo-600' : 'text-slate-400'" aria-hidden="true" x-text="item.icon"></span>
+                                <span class="flex-1" x-text="item.label"></span>
+                                <span x-show="i === idx" class="text-xs text-slate-400">Enter</span>
+                            </button>
+                        </div>
+                    </template>
 
-            <div class="max-h-80 overflow-y-auto p-2" role="listbox">
-                <template x-for="(item, i) in results" :key="item.id">
-                    <div>
-                        <p x-show="i === 0 || results[i - 1].group !== item.group"
-                           class="px-3 pb-1 pt-3 text-xs font-semibold text-slate-400" x-text="item.group"></p>
-                        <button type="button" role="option"
-                                x-bind:id="'cmd-' + i"
-                                x-bind:aria-selected="(i === idx).toString()"
-                                x-on:click="go(item)"
-                                x-on:mouseenter="idx = i"
-                                x-bind:class="i === idx ? 'bg-indigo-50 text-slate-900' : 'text-slate-600'"
-                                class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium focus:outline-none">
-                            <span class="material-symbols-outlined text-[20px]" x-bind:class="i === idx ? 'text-indigo-600' : 'text-slate-400'" aria-hidden="true" x-text="item.icon"></span>
-                            <span class="flex-1" x-text="item.label"></span>
-                            <span x-show="i === idx" class="text-xs text-slate-400">Enter</span>
-                        </button>
-                    </div>
-                </template>
+                    <p x-show="results.length === 0" class="px-3 py-8 text-center text-sm text-slate-500"
+                       x-text="'No matches for \"' + q + '\"'"></p>
+                </div>
 
-                <p x-show="results.length === 0" class="px-3 py-8 text-center text-sm text-slate-500"
-                   x-text="'No matches for “' + q + '”'"></p>
-            </div>
-
-            <div class="flex items-center gap-4 border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-500">
-                <span><kbd class="font-code-sm">↑↓</kbd> to move</span>
-                <span><kbd class="font-code-sm">Enter</kbd> to open</span>
-                <span><kbd class="font-code-sm">Esc</kbd> to close</span>
+                <div class="flex items-center gap-4 border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-500">
+                    <span><kbd class="font-code-sm">↑↓</kbd> to move</span>
+                    <span><kbd class="font-code-sm">Enter</kbd> to open</span>
+                    <span><kbd class="font-code-sm">Esc</kbd> to close</span>
+                </div>
             </div>
         </div>
     </div>

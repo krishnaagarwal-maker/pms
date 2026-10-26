@@ -7,6 +7,7 @@ use Modules\ProjectManagement\Http\Controllers\RoleController;
 use Modules\ProjectManagement\Http\Controllers\TaskController;
 use Modules\ProjectManagement\Http\Controllers\DashboardController;
 use Modules\ProjectManagement\Http\Controllers\UserRoleController;
+use Modules\ProjectManagement\Http\Controllers\AttachmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -43,19 +44,58 @@ Route::middleware(['web', 'auth'])
             ->name('my-tasks');
 
             // Role Management routes
-        Route::get('/roles', [RoleController::class, 'index'])->middleware('permission:roles.view')->name('roles.index');
-        Route::get('/roles/create', [RoleController::class, 'create'])->middleware('permission:roles.create')->name('roles.create');
-        Route::post('/roles', [RoleController::class, 'store'])->middleware('permission:roles.create')->name('roles.store');
-        Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])->middleware('permission:roles.edit')->name('roles.edit');
-        Route::put('/roles/{role}', [RoleController::class, 'update'])->middleware('permission:roles.edit')->name('roles.update');
-        Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->middleware('permission:roles.delete')->name('roles.destroy');
 
-        Route::get('/users/roles', [UserRoleController::class, 'index'])->middleware('auth')->name('users.roles.index');
-        Route::post('/users/roles', [UserRoleController::class, 'assign'])->middleware('auth')->name('users.roles.assign');
-        Route::delete('/users/{user}', [UserRoleController::class, 'destroy'])->middleware('auth')->name('users.destroy');
+        // Role Management routes
+        Route::get('/roles', [RoleController::class, 'index'])
+            ->middleware('permission:roles.view')
+            ->name('roles.index');
+
+        Route::get('/roles/create', [RoleController::class, 'create'])
+            ->middleware('permission:roles.create')
+            ->name('roles.create');
+
+        Route::post('/roles', [RoleController::class, 'store'])
+            ->middleware('permission:roles.create')
+            ->name('roles.store');
+
+        // Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])
+        //     ->middleware('permission:roles.edit')
+        //     ->name('roles.edit');
+
+        Route::put('/roles/{role}', [RoleController::class, 'update'])
+            ->middleware('permission:roles.edit')
+            ->name('roles.update');
+
+        Route::delete('/roles/{role}', [RoleController::class, 'destroy'])
+            ->middleware('permission:roles.delete')
+            ->name('roles.destroy');
+
+        // User Role Management routes
+        Route::get('/users/roles', [UserRoleController::class, 'index'])
+            ->middleware('permission:roles.view')
+            ->name('users.roles.index');
+
+        Route::post('/users/roles', [UserRoleController::class, 'assign'])
+            ->middleware('permission:roles.assign-permissions')
+            ->name('users.roles.assign');
+
+        Route::post('/users/onboard', [UserRoleController::class, 'onboard'])
+            ->middleware('permission:users.create')
+            ->name('users.onboard');
+
+        Route::delete('/users/{user}', [UserRoleController::class, 'destroy'])
+            ->middleware('permission:users.delete')
+            ->name('users.destroy');
+
+        // Attachment routes (download, preview, delete)
+        Route::get('/attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
+        Route::get('/attachments/{attachment}/preview', [AttachmentController::class, 'preview'])->name('attachments.preview');
+        Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
 
         Route::get('/{project}/tasks/create', [TaskController::class, 'create'])->middleware('permission:tasks.create')->name('tasks.create');
         Route::post('/{project}/tasks', [TaskController::class, 'store'])->middleware('permission:tasks.create')->name('tasks.store');
+        Route::post('/{project}/attachments', [AttachmentController::class, 'storeProject'])->name('attachments.store');
+        Route::post('/{project}/tasks/{task}/attachments', [AttachmentController::class, 'storeTask'])->name('tasks.attachments.store');
         Route::get('/{project}/tasks/{task}', [TaskController::class, 'show'])->middleware('permission:tasks.view')->name('tasks.show');
         Route::get('/{project}/tasks/{task}/edit', [TaskController::class, 'edit'])->middleware('permission:tasks.edit')->name('tasks.edit');
         Route::put('/{project}/tasks/{task}', [TaskController::class, 'update'])

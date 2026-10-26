@@ -50,6 +50,50 @@
 @endphp
 
 <x-app-layout>
+    <style>
+        [x-cloak]{display:none !important}
+
+        @keyframes task-edit-enter {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes task-glow-pulse {
+            0%, 100% { opacity: .4; transform: scale(1); }
+            50% { opacity: .7; transform: scale(1.05); }
+        }
+
+        @keyframes task-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .task-edit-enter {
+            animation: task-edit-enter .55s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .task-glow-1 {
+            animation: task-glow-pulse 8s ease-in-out infinite;
+        }
+
+        .task-glow-2 {
+            animation: task-glow-pulse 10s ease-in-out infinite 2s;
+        }
+
+        .task-shimmer-bar {
+            background: linear-gradient(90deg, #4f46e5 0%, #06b6d4 50%, #10b981 100%);
+            background-size: 200% 100%;
+            animation: task-shimmer 6s linear infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .task-edit-enter,
+            .task-glow-1,
+            .task-glow-2,
+            .task-shimmer-bar { animation: none !important; transform: none !important; }
+        }
+    </style>
+
     <div class="relative w-full overflow-hidden font-inter"
          @keydown.window.ctrl.s.prevent="$refs.form.requestSubmit()"
          @keydown.window.meta.s.prevent="$refs.form.requestSubmit()"
@@ -140,13 +184,13 @@
          }">
 
         {{-- Soft background glow --}}
-        <div class="pointer-events-none absolute -left-20 -top-32 h-96 w-96 rounded-full bg-primary/5 blur-3xl"></div>
-        <div class="pointer-events-none absolute right-10 top-20 h-80 w-80 rounded-full bg-tertiary-fixed/15 blur-3xl"></div>
+        <div class="task-glow-1 pointer-events-none absolute -left-20 -top-32 h-96 w-96 rounded-full bg-primary/10 blur-3xl"></div>
+        <div class="task-glow-2 pointer-events-none absolute right-10 top-20 h-80 w-80 rounded-full bg-tertiary-fixed/20 blur-3xl"></div>
 
         <div class="relative mx-auto max-w-7xl px-6 py-space-xl lg:px-12">
 
             {{-- Top bar --}}
-            <div class="mb-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
+            <div class="task-edit-enter mb-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
                 <div class="flex min-w-0 flex-col gap-space-xs">
                     <nav class="flex flex-wrap items-center gap-2 text-label-md text-on-surface-variant" aria-label="Breadcrumb">
                         <a href="{{ route('projects.index') }}" class="flex items-center gap-1 transition-colors hover:text-primary">
@@ -189,57 +233,60 @@
 
                 {{-- LEFT: form --}}
                 <form id="edit-task-form" x-ref="form"
-                      action="{{ route('projects.tasks.update', [$project, $task]) }}" method="POST"
+                      action="{{ route('projects.tasks.update', [$project, $task]) }}" method="POST" enctype="multipart/form-data"
                       class="flex flex-col gap-space-lg lg:col-span-8">
                     @csrf
                     @method('PUT')
 
                     {{-- Task overview --}}
-                    <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
-                        <div class="mb-space-md flex items-center justify-between">
-                            <div class="flex items-center gap-space-xs">
-                                <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">assignment</span>
-                                <h2 class="text-title-md text-on-surface">Task Overview</h2>
+                    <div class="task-edit-enter relative overflow-hidden rounded-xl bg-surface-container-lowest shadow-sm" style="animation-delay: 70ms">
+                        <div class="task-shimmer-bar h-1.5 w-full"></div>
+                        <div class="p-space-lg">
+                            <div class="mb-space-md flex items-center justify-between">
+                                <div class="flex items-center gap-space-xs">
+                                    <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">assignment</span>
+                                    <h2 class="text-title-md text-on-surface">Task Overview</h2>
+                                </div>
+                                <span class="font-code-sm text-[11px] text-on-surface-variant">ID: {{ $ticket }}</span>
                             </div>
-                            <span class="font-code-sm text-[11px] text-on-surface-variant">ID: {{ $ticket }}</span>
-                        </div>
 
-                        {{-- Title --}}
-                        <div class="mb-space-md">
-                            <div class="mb-space-xs flex items-center justify-between">
-                                <label for="title" class="flex items-center gap-1 text-label-md text-on-surface">
-                                    Task Title <span class="text-title-sm text-error">*</span>
-                                </label>
-                                <span class="font-code-sm text-code-sm text-on-surface-variant" x-text="title.length + ' / 255'">0 / 255</span>
+                            {{-- Title --}}
+                            <div class="mb-space-md">
+                                <div class="mb-space-xs flex items-center justify-between">
+                                    <label for="title" class="flex items-center gap-1 text-label-md text-on-surface">
+                                        Task Title <span class="text-title-sm text-error">*</span>
+                                    </label>
+                                    <span class="font-code-sm text-code-sm text-on-surface-variant" x-text="title.length + ' / 255'">0 / 255</span>
+                                </div>
+                                <input type="text" id="title" name="title" x-model="title" required maxlength="255"
+                                       class="w-full rounded-xl border-0 bg-surface-container-lowest px-space-md py-2.5 text-body-lg text-on-surface transition-shadow placeholder:text-outline focus:outline-none focus:ring-0
+                                              {{ $errors->has('title') ? 'shadow-[0_0_0_2px_rgba(186,26,26,1)]' : 'shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]' }}">
+                                @error('title')
+                                    <p class="mt-1.5 flex items-center gap-1 text-body-sm text-error">
+                                        <span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>
+                                        {{ $message }}
+                                    </p>
+                                @enderror
                             </div>
-                            <input type="text" id="title" name="title" x-model="title" required maxlength="255"
-                                   class="w-full rounded-xl border-0 bg-surface-container-lowest px-space-md py-2.5 text-body-lg text-on-surface transition-shadow placeholder:text-outline focus:outline-none focus:ring-0
-                                          {{ $errors->has('title') ? 'shadow-[0_0_0_2px_rgba(186,26,26,1)]' : 'shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]' }}">
-                            @error('title')
-                                <p class="mt-1.5 flex items-center gap-1 text-body-sm text-error">
-                                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>
-                                    {{ $message }}
-                                </p>
-                            @enderror
-                        </div>
 
-                        {{-- Description --}}
-                        <div>
-                            <label for="description" class="mb-space-xs block text-label-md text-on-surface">Description &amp; Specifications</label>
-                            <textarea id="description" name="description" rows="7" x-model="description"
-                                      class="w-full resize-y rounded-xl border-0 bg-surface-container-lowest p-space-md text-body-md text-on-surface transition-shadow placeholder:text-outline focus:outline-none focus:ring-0
-                                             {{ $errors->has('description') ? 'shadow-[0_0_0_2px_rgba(186,26,26,1)]' : 'shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]' }}"></textarea>
-                            @error('description')
-                                <p class="mt-1.5 flex items-center gap-1 text-body-sm text-error">
-                                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>
-                                    {{ $message }}
-                                </p>
-                            @enderror
+                            {{-- Description --}}
+                            <div>
+                                <label for="description" class="mb-space-xs block text-label-md text-on-surface">Description &amp; Specifications</label>
+                                <textarea id="description" name="description" rows="7" x-model="description"
+                                          class="w-full resize-y rounded-xl border-0 bg-surface-container-lowest p-space-md text-body-md text-on-surface transition-shadow placeholder:text-outline focus:outline-none focus:ring-0
+                                                 {{ $errors->has('description') ? 'shadow-[0_0_0_2px_rgba(186,26,26,1)]' : 'shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]' }}"></textarea>
+                                @error('description')
+                                    <p class="mt-1.5 flex items-center gap-1 text-body-sm text-error">
+                                        <span class="material-symbols-outlined text-[14px]" aria-hidden="true">error</span>
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
                         </div>
                     </div>
 
                     {{-- Planning & attributes --}}
-                    <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+                    <div class="task-edit-enter rounded-xl bg-surface-container-lowest p-space-lg shadow-sm" style="animation-delay: 140ms">
                         <div class="mb-space-md flex items-center justify-between">
                             <div class="flex items-center gap-space-xs">
                                 <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">tune</span>
@@ -357,7 +404,7 @@
 
                     {{-- Assignment: renders only if the controller passes $users --}}
                     @isset($users)
-                        <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+                        <div class="task-edit-enter rounded-xl bg-surface-container-lowest p-space-lg shadow-sm" style="animation-delay: 210ms">
                             <div class="mb-space-md flex items-center gap-space-xs">
                                 <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">person_add</span>
                                 <div>
@@ -401,13 +448,28 @@
                         </div>
                     @endisset
 
+                    {{-- Attachments --}}
+                    <div class="task-edit-enter rounded-xl bg-surface-container-lowest p-space-lg shadow-sm" style="animation-delay: 280ms">
+                        <div class="mb-space-md flex items-center justify-between">
+                            <div class="flex items-center gap-space-xs">
+                                <span class="material-symbols-outlined text-[22px] text-primary" aria-hidden="true">attach_file</span>
+                                <h2 class="text-title-md text-on-surface">Task Attachments</h2>
+                            </div>
+                        </div>
+
+                        @include('ProjectManagement::attachments._form-upload', [
+                            'label' => 'Attach Screenshots, Logs, Specs or Files',
+                            'existingAttachments' => $task->attachments,
+                        ])
+                    </div>
+
                 </form>
 
                 {{-- RIGHT: preview, activity, delete --}}
                 <aside class="flex flex-col gap-space-lg lg:sticky lg:top-6 lg:col-span-4">
 
                     {{-- Board preview --}}
-                    <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm">
+                    <div class="task-edit-enter rounded-xl bg-surface-container-lowest p-space-lg shadow-sm" style="animation-delay: 100ms">
                         <div class="mb-space-md flex items-center justify-between">
                             <div class="flex items-center gap-space-xs">
                                 <span class="material-symbols-outlined text-[20px] text-primary" aria-hidden="true">view_kanban</span>
@@ -415,7 +477,7 @@
                             </div>
                         </div>
 
-                        <div class="rounded-xl bg-surface-container-lowest p-space-md shadow-[0_0_0_1px_rgba(226,232,240,1),0_1px_2px_rgba(15,23,42,0.04)]">
+                        <div class="rounded-xl bg-surface-container-lowest p-space-md shadow-[0_0_0_1px_rgba(226,232,240,1),0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-300 hover:shadow-md">
                             <div class="mb-space-sm flex items-center justify-between gap-2">
                                 <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-label-sm"
                                       :class="statusPill[status]?.pill">
@@ -454,7 +516,7 @@
                     </div>
 
                     {{-- Recent activity --}}
-                    <div class="rounded-xl bg-surface-container-lowest p-space-lg shadow-sm" x-data="{ showAll: false }">
+                    <div class="task-edit-enter rounded-xl bg-surface-container-lowest p-space-lg shadow-sm" x-data="{ showAll: false }" style="animation-delay: 180ms">
                         <div class="mb-space-md flex items-center justify-between">
                             <div class="flex items-center gap-space-xs">
                                 <span class="material-symbols-outlined text-[20px] text-primary" aria-hidden="true">history</span>
@@ -577,6 +639,7 @@
 
                     @can('tasks.delete')
                         <form action="{{ route('projects.tasks.destroy', [$project, $task]) }}" method="POST"
+                              class="task-edit-enter" style="animation-delay: 250ms"
                               onsubmit="return confirm(@js('Delete “' . $task->title . '”? This can’t be undone.'))">
                             @csrf
                             @method('DELETE')
@@ -591,7 +654,7 @@
             </div>
 
             {{-- Bottom action bar --}}
-            <div class="mt-space-lg flex flex-col items-center justify-between gap-space-sm rounded-xl bg-surface-container-lowest px-space-lg py-space-md shadow-sm sm:flex-row">
+            <div class="task-edit-enter mt-space-lg flex flex-col items-center justify-between gap-space-sm rounded-xl bg-surface-container-lowest px-space-lg py-space-md shadow-sm sm:flex-row" style="animation-delay: 320ms">
                 <span class="flex items-center gap-2 text-body-sm text-on-surface-variant">
                     <span class="h-2 w-2 rounded-full bg-tertiary" aria-hidden="true"></span>
                     Last saved {{ $task->updated_at->diffForHumans() }}

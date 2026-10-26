@@ -327,6 +327,21 @@
                         </section>
                     @endif
 
+                    {{-- Task Attachments --}}
+                    @php
+                        $canUploadTask = auth()->user()->can('attachments.create') && (
+                            auth()->user()->can('tasks.edit') ||
+                            ((int) $task->assigned_to === (int) auth()->id() && auth()->user()->can('tasks.update-status'))
+                        );
+                    @endphp
+                    @include('ProjectManagement::attachments._section', [
+                        'attachable' => $task,
+                        'title' => 'Task Attachments',
+                        'subtitle' => 'Reference documents, screenshots, logs, and deliverables for this task',
+                        'uploadRoute' => route('projects.tasks.attachments.store', [$project, $task]),
+                        'canUpload' => $canUploadTask,
+                    ])
+
                     {{-- Recent Updates --}}
                     <section class="task-view-enter p-space-lg {{ $card }}" style="animation-delay: 220ms">
                         @php
@@ -530,18 +545,19 @@
                                                 Execution Status <span class="text-error" aria-hidden="true">*</span>
                                             </legend>
 
-                                            <div class="grid grid-cols-1 gap-1 rounded-xl bg-surface-container-low p-1 sm:grid-cols-3">
+                                            <div class="grid grid-cols-1 gap-1 rounded-xl bg-surface-container-low p-1 sm:grid-cols-3" x-data="{ status: '{{ $task->status }}' }">
                                                 @foreach ([
                                                     ['pending', 'Pending', 'radio_button_unchecked'],
                                                     ['in_progress', 'In Progress', 'timelapse'],
                                                     ['completed', 'Completed', 'check_circle'],
                                                 ] as [$value, $optLabel, $optIcon])
                                                     <label class="cursor-pointer">
-                                                        <input type="radio" name="status" value="{{ $value }}" {{ $task->status === $value ? 'checked' : '' }} required class="peer sr-only">
-                                                        <span class="flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-label-md transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container {{ $task->status === $value ? (
-                                                            $value === 'in_progress' ? 'bg-secondary-fixed text-on-secondary-fixed shadow-sm' :
-                                                            ($value === 'completed' ? 'bg-tertiary-fixed text-on-tertiary-fixed shadow-sm' : 'bg-surface-container-lowest text-on-surface shadow-sm')
-                                                        ) : 'text-on-surface-variant hover:text-on-surface' }}">
+                                                        <input type="radio" name="status" value="{{ $value }}" x-model="status" required class="peer sr-only">
+                                                        <span class="flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-label-md transition-all peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container"
+                                                              :class="status === '{{ $value }}' ? (
+                                                                  '{{ $value }}' === 'in_progress' ? 'bg-secondary-fixed text-on-secondary-fixed shadow-sm' :
+                                                                  ('{{ $value }}' === 'completed' ? 'bg-tertiary-fixed text-on-tertiary-fixed shadow-sm' : 'bg-surface-container-lowest text-on-surface shadow-sm')
+                                                              ) : 'text-on-surface-variant hover:text-on-surface'">
                                                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $optIcon }}</span>
                                                             {{ $optLabel }}
                                                         </span>
@@ -557,8 +573,8 @@
                                             @enderror
                                         </fieldset>
 
-                                        <button type="submit"
-                                                class="mt-space-sm flex w-full items-center justify-center gap-2 rounded-xl bg-secondary-container px-space-md py-2.5 text-label-md text-on-secondary-container transition-colors hover:bg-secondary hover:text-on-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2">
+                                            <button type="submit"
+                                                    class="mt-space-sm flex w-full items-center justify-center gap-2 rounded-xl bg-primary-container px-space-md py-2.5 text-label-md text-on-primary transition-colors hover:bg-primary hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
                                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">update</span>
                                             Update Status
                                         </button>

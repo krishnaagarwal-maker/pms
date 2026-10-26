@@ -30,12 +30,18 @@ class RoleController extends Controller
                 'tasks.assign',
                 'tasks.update-status',
             ],
-            'Role Management' => [
+            'Attachments' => [
+                'attachments.create',
+                'attachments.delete',
+            ],
+            'User & Role Management' => [
                 'roles.view',
                 'roles.create',
                 'roles.edit',
                 'roles.delete',
                 'roles.assign-permissions',
+                'users.create',
+                'users.delete',
             ],
         ];
     }
@@ -47,7 +53,16 @@ class RoleController extends Controller
             ->orderBy('name')
             ->paginate(10);
 
-        return view('ProjectManagement::roles.index', compact('roles'));
+        $permissionGroups = $this->permissionGroups();
+        $assignablePermissions = request()->user()
+            ? request()->user()
+                ->getAllPermissions()
+                ->where('guard_name', 'web')
+                ->pluck('name')
+                ->all()
+            : [];
+
+        return view('ProjectManagement::roles.index', compact('roles', 'permissionGroups', 'assignablePermissions'));
     }
 
     public function create()
@@ -66,10 +81,19 @@ class RoleController extends Controller
     public function store(Request $request)
     {
         abort_unless(
-            $request->user()->can('roles.assign-permissions'),
+            $request->user()->can('roles.create'),
             403,
-            'You are not allowed to assign permissions.'
+            'You are not allowed to create roles.'
         );
+
+        if ($request->exists('permissions')) {
+            abort_unless(
+                $request->user()->can('roles.assign-permissions'),
+                403,
+                'You are not allowed to assign permissions.'
+            );
+        }
+
         $assignablePermissions = $request->user()
         ->getAllPermissions()
         ->where('guard_name', 'web')
