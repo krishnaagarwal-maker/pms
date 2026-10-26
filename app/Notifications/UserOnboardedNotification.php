@@ -50,7 +50,7 @@ class UserOnboardedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Welcome to ' . config('app.name', 'ProjectMS') . ' - Account Details')
+            ->subject('Welcome to the Team - Account Details')
             ->view('emails.user-onboarded', [
                 'user' => $this->user,
                 'onboardedBy' => $this->onboardedBy,

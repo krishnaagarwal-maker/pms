@@ -291,7 +291,6 @@
 
                             <button type="submit" @disabled($assignable->isEmpty())
                                     class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                                <span class="material-symbols-outlined text-[18px]">published_with_changes</span>
                                 {{ __('Update Permissions') }}
                             </button>
                         </form>

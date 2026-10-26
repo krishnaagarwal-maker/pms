@@ -117,7 +117,7 @@
                     @endforeach
                 </div>
             </div>
-
+    
             {{-- Desktop actions --}}
             <div class="hidden items-center gap-3 md:flex">
                 {{-- Palette trigger --}}
@@ -129,8 +129,90 @@
                     <kbd class="hidden rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-code-sm text-[11px] text-slate-500 lg:inline" x-text="isMac ? '⌘K' : 'Ctrl K'">Ctrl K</kbd>
                 </button>
 
-               
+                {{-- Notifications --}}
+                @php
+                    $navNotifications = $navUser ? $navUser->notifications()->latest()->limit(6)->get() : collect();
+                    $navUnreadCount   = $navUser ? (int) $navUser->unreadNotifications()->count() : 0;
+                    $navUnreadBadge   = $navUnreadCount > 9 ? '9+' : (string) $navUnreadCount;
+                    $navCanReadAll    = \Illuminate\Support\Facades\Route::has('notifications.read-all');
+                    $safeNavLink      = fn ($l) => is_string($l) && ! \Illuminate\Support\Str::startsWith($l, '//') && \Illuminate\Support\Str::startsWith($l, ['/', 'http://', 'https://']) ? $l : route('dashboard');
+                @endphp
+                <div x-data="{ open: false }" x-on:keydown.escape.window="open = false" class="relative">
+                    <button type="button"
+                            x-on:click="open = !open"
+                            class="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/40 bg-white/55 text-slate-600 shadow-sm ring-1 ring-slate-200/50 transition hover:bg-white/75 hover:text-slate-900 {{ $ring }}"
+                            aria-haspopup="true"
+                            aria-controls="nav-notification-panel"
+                            x-bind:aria-expanded="open.toString()">
+                        <span class="sr-only">Notifications{{ $navUnreadCount > 0 ? ', ' . $navUnreadCount . ' unread' : '' }}</span>
+                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">notifications</span>
+                        @if ($navUnreadCount > 0)
+                            <span aria-hidden="true" class="absolute -right-1 -top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+                                {{ $navUnreadBadge }}
+                            </span>
+                        @endif
+                    </button>
 
+                    <div id="nav-notification-panel"
+                         x-show="open"
+                         x-cloak
+                         x-on:click.outside="open = false"
+                         role="region"
+                         aria-label="Notifications"
+                         class="absolute right-0 z-50 mt-2 w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-100"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 translate-y-1">
+                        <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                            <div class="text-sm font-semibold text-slate-800">
+                                Notifications
+                                @if ($navUnreadCount > 0)
+                                    <span class="ml-1 rounded-full bg-slate-900 px-1.5 py-0.5 text-xs font-medium text-white">{{ $navUnreadCount }} new</span>
+                                @endif
+                            </div>
+                            @if ($navNotifications->isNotEmpty() && $navUnreadCount > 0 && $navCanReadAll)
+                                <form action="{{ route('notifications.read-all') }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="rounded text-xs font-semibold text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline {{ $ringLite }}">
+                                        Mark all as read
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+
+                        <div class="max-h-80 overflow-y-auto">
+                            @forelse ($navNotifications as $notification)
+                                @php
+                                    $nData    = $notification->data ?? [];
+                                    $nMessage = $nData['message'] ?? 'System update';
+                                    $nLink    = $safeNavLink($nData['link'] ?? null);
+                                    $nUnread  = is_null($notification->read_at);
+                                @endphp
+                                <a href="{{ $nLink }}"
+                                   class="block border-b border-slate-100 px-4 py-3 transition last:border-b-0 hover:bg-slate-50 {{ $nUnread ? 'bg-indigo-50/40' : '' }} {{ $ringLite }}">
+                                    <div class="flex items-start gap-3">
+                                        <span class="mt-1.5 inline-flex h-2 w-2 shrink-0 rounded-full {{ $nUnread ? 'bg-indigo-600' : 'bg-slate-300' }}">
+                                            <span class="sr-only">{{ $nUnread ? 'Unread' : 'Read' }}</span>
+                                        </span>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm {{ $nUnread ? 'font-semibold text-slate-900' : 'font-medium text-slate-700' }}">{{ $nMessage }}</p>
+                                            <p class="mt-1 text-xs text-slate-500">{{ $notification->created_at?->diffForHumans() ?? 'just now' }}</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            @empty
+                                <div class="px-4 py-8 text-center">
+                                    <span class="material-symbols-outlined text-[28px] text-slate-300" aria-hidden="true">notifications_off</span>
+                                    <p class="mt-1 text-sm font-medium text-slate-700">You are all caught up</p>
+                                    <p class="text-xs text-slate-500">New activity will show up here.</p>
+                                </div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
                 <x-dropdown align="right" width="56">
                     <x-slot name="trigger">
                         <button type="button"
@@ -172,6 +254,83 @@
 
             {{-- Mobile buttons --}}
             <div class="flex items-center gap-1 md:hidden">
+                <div x-data="{ open: false }" x-on:keydown.escape.window="open = false" class="relative">
+                    <button type="button"
+                            x-on:click="open = !open"
+                            class="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-sky-200/60 hover:text-slate-900 {{ $ring }}"
+                            aria-haspopup="true"
+                            aria-controls="nav-notification-panel-mobile"
+                            x-bind:aria-expanded="open.toString()">
+                        <span class="sr-only">Notifications{{ $navUnreadCount > 0 ? ', ' . $navUnreadCount . ' unread' : '' }}</span>
+                        <span class="material-symbols-outlined text-[22px]" aria-hidden="true">notifications</span>
+                        @if ($navUnreadCount > 0)
+                            <span aria-hidden="true" class="absolute 1 top-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white">
+                                {{ $navUnreadBadge }}
+                            </span>
+                        @endif
+                    </button>
+
+                    <div id="nav-notification-panel-mobile"
+                         x-show="open"
+                         x-cloak
+                         x-on:click.outside="open = false"
+                         role="region"
+                         aria-label="Notifications"
+                         class="fixed inset-x-4 top-16 z-50 mt-1 max-h-[70vh] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-100"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 translate-y-1">
+                        <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+                            <div class="text-sm font-semibold text-slate-800">
+                                Notifications
+                                @if ($navUnreadCount > 0)
+                                    <span class="ml-1 rounded-full bg-slate-900 px-1.5 py-0.5 text-xs font-medium text-white">{{ $navUnreadCount }} new</span>
+                                @endif
+                            </div>
+                            @if ($navNotifications->isNotEmpty() && $navUnreadCount > 0 && $navCanReadAll)
+                                <form action="{{ route('notifications.read-all') }}" method="POST">
+                                    @csrf
+                                    <button type="submit" class="rounded text-xs font-semibold text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline {{ $ringLite }}">
+                                        Mark all
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+
+                        <div class="max-h-64 overflow-y-auto">
+                            @forelse ($navNotifications as $notification)
+                                @php
+                                    $nData    = $notification->data ?? [];
+                                    $nMessage = $nData['message'] ?? 'System update';
+                                    $nLink    = $safeNavLink($nData['link'] ?? null);
+                                    $nUnread  = is_null($notification->read_at);
+                                @endphp
+                                <a href="{{ $nLink }}"
+                                   class="block border-b border-slate-100 px-4 py-3 transition last:border-b-0 hover:bg-slate-50 {{ $nUnread ? 'bg-indigo-50/40' : '' }} {{ $ringLite }}">
+                                    <div class="flex items-start gap-3">
+                                        <span class="mt-1.5 inline-flex h-2 w-2 shrink-0 rounded-full {{ $nUnread ? 'bg-indigo-600' : 'bg-slate-300' }}">
+                                            <span class="sr-only">{{ $nUnread ? 'Unread' : 'Read' }}</span>
+                                        </span>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm {{ $nUnread ? 'font-semibold text-slate-900' : 'font-medium text-slate-700' }}">{{ $nMessage }}</p>
+                                            <p class="mt-1 text-xs text-slate-500">{{ $notification->created_at?->diffForHumans() ?? 'just now' }}</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            @empty
+                                <div class="px-4 py-8 text-center">
+                                    <span class="material-symbols-outlined text-[28px] text-slate-300" aria-hidden="true">notifications_off</span>
+                                    <p class="mt-1 text-sm font-medium text-slate-700">You are all caught up</p>
+                                    <p class="text-xs text-slate-500">New activity will show up here.</p>
+                                </div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+
                 <button type="button" x-on:click="openPalette()"
                         class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-sky-200/60 hover:text-slate-900 {{ $ring }}">
                     <span class="sr-only">Open search</span>

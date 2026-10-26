@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to {{ config('app.name', 'ProjectMS') }}</title>
+    <title>Welcome to the Workspace</title>
     <style>
         body {
             margin: 0;
@@ -154,9 +154,6 @@
         <div class="main-card">
             {{-- Header --}}
             <div class="header">
-                <div class="logo-box">
-                    {{ config('app.name', 'ProjectMS') }}
-                </div>
                 <h1>Welcome to the Team!</h1>
                 <p>Your workspace account is ready and configured.</p>
             </div>
@@ -165,7 +162,7 @@
             <div class="content">
                 <div class="greeting">Hello {{ $user->name }},</div>
                 <div class="intro-text">
-                    You have been invited and onboarded by <strong>{{ $onboardedBy->name }}</strong> to collaborate on <strong>{{ config('app.name', 'ProjectMS') }}</strong>. Below are your account details and login credentials:
+                    You have been invited and onboarded by <strong>{{ $onboardedBy->name }}</strong> to collaborate with the team. Below are your account details and login credentials:
                 </div>
 
                 {{-- Account Details Card --}}
@@ -204,7 +201,7 @@
 
             {{-- Footer --}}
             <div class="footer">
-                &copy; {{ date('Y') }} {{ config('app.name', 'ProjectMS') }}. All rights reserved.<br>
+                &copy; {{ date('Y') }} All rights reserved.<br>
                 If you did not expect this invitation, please contact your workspace administrator.
             </div>
         </div>
