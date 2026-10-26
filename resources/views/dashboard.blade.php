@@ -797,13 +797,7 @@
                             Roles &amp; permissions
                         </a>
                     @endcan
-                    @can('roles.create')
-                        <a href="{{ route('projects.roles.create') }}"
-                           class="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 hover:border-zinc-300 hover:bg-zinc-100 {{ $focus }}">
-                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">add_moderator</span>
-                            Create a role
-                        </a>
-                    @endcan
+                 
                     @can('roles.assign-permissions')
                         <a href="{{ route('projects.users.roles.index') }}"
                            class="inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 hover:border-zinc-300 hover:bg-zinc-100 {{ $focus }}">

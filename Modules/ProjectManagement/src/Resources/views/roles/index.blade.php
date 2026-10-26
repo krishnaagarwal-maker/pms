@@ -291,7 +291,7 @@
                                                 @endif
                                             </div>
                                             <p class="mt-2 text-[11px] text-slate-400 font-medium">
-                                                {{ $permCount }} total {{ Str::plural('capability', $permCount) }} enabled
+                                                {{ $permCount }} total {{ Str::plural('capability', $permCount) }} 
                                             </p>
                                         @endif
                                     </td>

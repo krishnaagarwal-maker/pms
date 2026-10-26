@@ -1,37 +1,3 @@
-{{-- View: tasks.create (route: projects.tasks.create) --}}
-
-{{--
-|--------------------------------------------------------------------------
-| RBAC NOTES (dynamic roles & permissions — partly wired up)
-|--------------------------------------------------------------------------
-| Planned: default roles "manager" and "team member", plus custom roles
-| with custom permissions.
-|
-| ASSIGNEE: ACTIVE. Renders only when the user has the 'tasks.assign'
-| permission AND the controller passes $users. Nothing breaks if either
-| is missing; the section just doesn't show.
-|
-| ROLES / PERMISSIONS: COMMENTED OUT below (search for RBAC-ROLES) because
-| they need roles/permissions tables that don't exist yet.
-|
-| When RBAC exists:
-|   1. RBAC-ROLES     : enable the role + effective-permission section
-|   2. RBAC-INSPECTOR : role summary card in the sidebar
-|   3. RBAC-CREATE    : wrap the Create Task buttons in
-|                       @can('create', [App\Models\Task::class, $project])
-|      (an undefined ability returns false, so do NOT add @can before the
-|      permission/policy exists, or the buttons will disappear)
-|   4. Controller create(): pass
-|        'users'       => $project->members (or User::orderBy('name')->get()),
-|        'roles'       => Role::with('permissions')->get(),
-|        'permissions' => Permission::where('scope', 'task')->get()
-|   5. Controller store():  $this->authorize('create', [Task::class, $project]);
-|        'assigned_to' => ['nullable', 'exists:users,id'],
-|        'role_id'     => ['nullable', 'exists:roles,id'],
-|        'permissions' => ['nullable', 'array'],
-|        'permissions.*' => ['exists:permissions,id'],
---}}
-
 <x-app-layout>
     <style>
         @keyframes task-create-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
