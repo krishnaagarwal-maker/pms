@@ -69,6 +69,97 @@ class ProjectManagementViewsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_manager_can_onboard_new_user(): void
+    {
+        Notification::fake();
+
+        Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'team_member', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'users.create', 'guard_name' => 'web']);
+
+        $manager = User::factory()->create();
+        $manager->assignRole('manager');
+        $manager->givePermissionTo('users.create');
+
+        $payload = [
+            'name' => 'Onboarded Developer',
+            'email' => 'developer@example.com',
+            'password' => 'secret12345',
+            'password_confirmation' => 'secret12345',
+            'role' => 'team_member',
+        ];
+
+        $response = $this->actingAs($manager)
+            ->post(route('projects.users.onboard'), $payload);
+
+        $response->assertRedirect(route('projects.users.roles.index'));
+        $this->assertDatabaseHas('users', [
+            'name' => 'Onboarded Developer',
+            'email' => 'developer@example.com',
+        ]);
+
+        $createdUser = User::where('email', 'developer@example.com')->first();
+        $this->assertNotNull($createdUser);
+        $this->assertTrue($createdUser->hasRole('team_member'));
+
+        Notification::assertSentTo($createdUser, \App\Notifications\UserOnboardedNotification::class, function ($notification) use ($manager, $createdUser) {
+            $mail = $notification->toMail($createdUser);
+            $this->assertStringContainsString('Welcome to', $mail->subject);
+            return $notification->onboardedBy->id === $manager->id;
+        });
+    }
+
+    public function test_manager_onboards_user_defaults_to_team_member_when_role_omitted(): void
+    {
+        Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'team_member', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'users.create', 'guard_name' => 'web']);
+
+        $manager = User::factory()->create();
+        $manager->assignRole('manager');
+        $manager->givePermissionTo('users.create');
+
+        $payload = [
+            'name' => 'Default Member',
+            'email' => 'defaultmember@example.com',
+            'password' => 'secret12345',
+            'password_confirmation' => 'secret12345',
+            // 'role' omitted
+        ];
+
+        $response = $this->actingAs($manager)
+            ->post(route('projects.users.onboard'), $payload);
+
+        $response->assertRedirect(route('projects.users.roles.index'));
+        $createdUser = User::where('email', 'defaultmember@example.com')->first();
+        $this->assertNotNull($createdUser);
+        $this->assertTrue($createdUser->hasRole('team_member'));
+    }
+
+    public function test_unauthorized_user_cannot_onboard_new_user(): void
+    {
+        Role::firstOrCreate(['name' => 'team_member', 'guard_name' => 'web']);
+
+        $teamMember = User::factory()->create();
+        $teamMember->assignRole('team_member');
+
+        $payload = [
+            'name' => 'Unauthorized Creation',
+            'email' => 'unauthorized@example.com',
+            'password' => 'secret12345',
+            'password_confirmation' => 'secret12345',
+            'role' => 'team_member',
+        ];
+
+        $this->actingAs($teamMember)
+            ->post(route('projects.users.onboard'), $payload)
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'unauthorized@example.com',
+        ]);
+    }
+
     public function test_user_with_update_status_permission_can_update_task_status_without_edit_permission(): void
     {
         $assignee = User::factory()->create();

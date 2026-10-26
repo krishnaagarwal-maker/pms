@@ -379,7 +379,7 @@
             'title' => 'Project Attachments',
             'subtitle' => 'Deliverables, specifications, design assets, and project files',
             'uploadRoute' => route('projects.attachments.store', $project),
-            'canUpload' => auth()->user()->can('projects.edit') || auth()->user()->can('projects.create'),
+            'canUpload' => auth()->user()->can('attachments.create') && (auth()->user()->can('projects.edit') || auth()->user()->can('projects.create')),
         ])
 
         {{-- ───────── Project tasks ───────── --}}

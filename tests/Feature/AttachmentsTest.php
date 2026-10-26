@@ -57,6 +57,7 @@ class AttachmentsTest extends TestCase
     {
         $assignee = User::factory()->create();
         $assignee->assignRole('team_member');
+        $assignee->givePermissionTo('attachments.create');
 
         $project = Project::create([
             'name' => 'Task Attachments Project',
@@ -83,10 +84,39 @@ class AttachmentsTest extends TestCase
             'file_name' => 'screenshot.png',
             'uploaded_by' => $assignee->id,
         ]);
-
         $attachment = Attachment::where('file_name', 'screenshot.png')->first();
         $this->assertTrue($attachment->is_image);
         Storage::disk('public')->assertExists($attachment->file_path);
+    }
+
+    public function test_user_without_attachments_create_permission_cannot_upload_attachment(): void
+    {
+        $assignee = User::factory()->create();
+        $assignee->assignRole('team_member');
+        // lacks 'attachments.create'
+
+        $project = Project::create([
+            'name' => 'No Create Permission Project',
+        ]);
+
+        $task = $project->tasks()->create([
+            'title' => 'Task without create permission',
+            'priority' => 'high',
+            'status' => 'pending',
+            'assigned_to' => $assignee->id,
+        ]);
+
+        $file = UploadedFile::fake()->image('forbidden.png');
+
+        $this->actingAs($assignee)
+            ->post(route('projects.tasks.attachments.store', [$project, $task]), [
+                'attachments' => [$file],
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('attachments', [
+            'file_name' => 'forbidden.png',
+        ]);
     }
 
     public function test_user_can_download_project_attachment(): void
@@ -166,6 +196,7 @@ class AttachmentsTest extends TestCase
     {
         $assignee = User::factory()->create();
         $assignee->assignRole('team_member');
+        $assignee->givePermissionTo('attachments.delete');
 
         $project = Project::create(['name' => 'Delete Test Project']);
         $task = $project->tasks()->create([
@@ -194,6 +225,72 @@ class AttachmentsTest extends TestCase
         $response->assertSessionHas('success');
         $this->assertDatabaseMissing('attachments', ['id' => $attachment->id]);
         Storage::disk('public')->assertMissing($path);
+    }
+
+    public function test_user_without_attachments_delete_permission_cannot_delete_attachment(): void
+    {
+        $uploader = User::factory()->create();
+        $uploader->assignRole('team_member');
+
+        $project = Project::create(['name' => 'No Delete Permission Project']);
+        $task = $project->tasks()->create([
+            'title' => 'No Delete Permission Task',
+            'priority' => 'low',
+            'status' => 'pending',
+            'assigned_to' => $uploader->id,
+        ]);
+
+        $file = UploadedFile::fake()->create('sample.txt', 50);
+        $path = $file->store("attachments/tasks/{$task->id}", 'public');
+
+        $attachment = $task->attachments()->create([
+            'uploaded_by' => $uploader->id,
+            'file_name' => 'sample.txt',
+            'file_path' => $path,
+            'file_size' => 50,
+            'disk' => 'public',
+        ]);
+
+        // User uploaded the file, but lacks 'attachments.delete' permission
+        $this->actingAs($uploader)
+            ->delete(route('projects.attachments.destroy', $attachment))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('attachments', ['id' => $attachment->id]);
+    }
+
+    public function test_user_with_permission_can_only_delete_their_own_attachment(): void
+    {
+        $uploader = User::factory()->create();
+        $anotherUser = User::factory()->create();
+        $anotherUser->assignRole('team_member');
+        $anotherUser->givePermissionTo('attachments.delete');
+
+        $project = Project::create(['name' => 'Shared Project']);
+        $task = $project->tasks()->create([
+            'title' => 'Shared Task',
+            'priority' => 'low',
+            'status' => 'pending',
+            'assigned_to' => $anotherUser->id,
+        ]);
+
+        $file = UploadedFile::fake()->create('other_user.txt', 50);
+        $path = $file->store("attachments/tasks/{$task->id}", 'public');
+
+        $attachment = $task->attachments()->create([
+            'uploaded_by' => $uploader->id,
+            'file_name' => 'other_user.txt',
+            'file_path' => $path,
+            'file_size' => 50,
+            'disk' => 'public',
+        ]);
+
+        // anotherUser has 'attachments.delete', but was not the uploader and is not a manager
+        $this->actingAs($anotherUser)
+            ->delete(route('projects.attachments.destroy', $attachment))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('attachments', ['id' => $attachment->id]);
     }
 
     public function test_project_show_page_renders_attachments(): void

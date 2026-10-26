@@ -593,7 +593,7 @@
                                     </div>
                                     <div class="flex flex-col min-w-0">
                                         <span class="text-xs font-semibold text-slate-800 truncate">{{ $leadName }}</span>
-                                        <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Lead Manager</span>
+                                        <span class="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Assignee</span>
                                     </div>
                                 </div>
                                 <div class="flex flex-col text-right shrink-0">

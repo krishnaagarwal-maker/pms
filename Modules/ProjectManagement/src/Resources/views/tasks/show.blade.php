@@ -329,8 +329,10 @@
 
                     {{-- Task Attachments --}}
                     @php
-                        $canUploadTask = auth()->user()->can('tasks.edit') ||
-                            ((int) $task->assigned_to === (int) auth()->id() && auth()->user()->can('tasks.update-status'));
+                        $canUploadTask = auth()->user()->can('attachments.create') && (
+                            auth()->user()->can('tasks.edit') ||
+                            ((int) $task->assigned_to === (int) auth()->id() && auth()->user()->can('tasks.update-status'))
+                        );
                     @endphp
                     @include('ProjectManagement::attachments._section', [
                         'attachable' => $task,

@@ -210,7 +210,7 @@
                         $color = $att->color_classes;
                         $previewUrl = route('projects.attachments.preview', $att);
                         $downloadUrl = route('projects.attachments.download', $att);
-                        $canDelete = $user && (
+                        $canDelete = $user && $user->can('attachments.delete') && (
                             (int) $att->uploaded_by === (int) $user->id ||
                             ($attachable instanceof \Modules\ProjectManagement\Models\Project && ($user->can('projects.delete') || $user->can('projects.edit'))) ||
                             ($attachable instanceof \Modules\ProjectManagement\Models\Task && ($user->can('tasks.delete') || $user->can('tasks.edit')))

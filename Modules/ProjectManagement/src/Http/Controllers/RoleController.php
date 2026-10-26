@@ -30,12 +30,18 @@ class RoleController extends Controller
                 'tasks.assign',
                 'tasks.update-status',
             ],
-            'Role Management' => [
+            'Attachments' => [
+                'attachments.create',
+                'attachments.delete',
+            ],
+            'User & Role Management' => [
                 'roles.view',
                 'roles.create',
                 'roles.edit',
                 'roles.delete',
                 'roles.assign-permissions',
+                'users.create',
+                'users.delete',
             ],
         ];
     }

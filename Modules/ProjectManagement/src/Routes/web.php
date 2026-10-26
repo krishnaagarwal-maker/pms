@@ -79,6 +79,10 @@ Route::middleware(['web', 'auth'])
             ->middleware('permission:roles.assign-permissions')
             ->name('users.roles.assign');
 
+        Route::post('/users/onboard', [UserRoleController::class, 'onboard'])
+            ->middleware('permission:users.create')
+            ->name('users.onboard');
+
         Route::delete('/users/{user}', [UserRoleController::class, 'destroy'])
             ->middleware('permission:users.delete')
             ->name('users.destroy');

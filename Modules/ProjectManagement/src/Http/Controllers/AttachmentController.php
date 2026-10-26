@@ -22,7 +22,7 @@ class AttachmentController extends Controller
         $this->ensureProjectVisible($user, $project);
 
         abort_unless(
-            $user->can('projects.edit') || $user->can('projects.create'),
+            $user->can('attachments.create') && ($user->can('projects.edit') || $user->can('projects.create')),
             403,
             'You do not have permission to attach files to this project.'
         );
@@ -59,7 +59,7 @@ class AttachmentController extends Controller
         $isAssignee = (int) $task->assigned_to === (int) $user->id && $user->can('tasks.update-status');
 
         abort_unless(
-            $canEdit || $isAssignee,
+            $user->can('attachments.create') && ($canEdit || $isAssignee),
             403,
             'You do not have permission to attach files to this task.'
         );
@@ -121,6 +121,12 @@ class AttachmentController extends Controller
         $user = $request->user();
         $this->ensureAttachableVisible($user, $attachment);
 
+        abort_unless(
+            $user->can('attachments.delete'),
+            403,
+            'You do not have permission to delete attachments.'
+        );
+
         $isUploader = (int) $attachment->uploaded_by === (int) $user->id;
         $attachable = $attachment->attachable;
 
@@ -134,7 +140,7 @@ class AttachmentController extends Controller
         abort_unless(
             $isUploader || $hasManagerPermission,
             403,
-            'You do not have permission to delete this attachment.'
+            'You can only delete attachments that you uploaded.'
         );
 
         $fileName = $attachment->file_name;
