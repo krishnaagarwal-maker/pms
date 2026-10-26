@@ -297,100 +297,207 @@
                     </section>
                 </div>
 
-                {{-- Right Column: Active Team Members Table --}}
-                <div class="lg:col-span-8">
+                {{-- Right Column: Active Team Members Interactive Cards --}}
+                <div class="lg:col-span-8" x-data="{
+                    search: '',
+                    selectedFilter: 'all',
+                    quickSelectUser(id) {
+                        const sel = document.getElementById('user_id');
+                        if (sel) {
+                            sel.value = id;
+                            sel.dispatchEvent(new Event('change'));
+                            sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            sel.classList.add('ring-2', 'ring-indigo-600');
+                            setTimeout(() => sel.classList.remove('ring-2', 'ring-indigo-600'), 1500);
+                        }
+                    }
+                }">
                     <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                        <div class="flex flex-col gap-2 border-b border-slate-100 bg-slate-50/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+                        {{-- Directory Header with Search & Filter Controls --}}
+                        <div class="flex flex-col gap-4 border-b border-slate-100 bg-slate-50/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h3 class="text-base font-bold text-slate-900">{{ __('Current Team Directory') }}</h3>
-                                <p class="text-xs text-slate-500">{{ __('Overview of all user accounts and current security tiers.') }}</p>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-base font-bold text-slate-900">{{ __('Current Team Directory') }}</h3>
+                                    <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700 shadow-xs ring-1 ring-slate-200">
+                                        <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        {{ count($users) }} {{ __('Total') }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">{{ __('Interactive team cards with quick permissions and account controls.') }}</p>
                             </div>
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200">
-                                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                                {{ count($users) }} {{ __('Total Members') }}
-                            </span>
+
+                            {{-- Search and Filter Controls --}}
+                            <div class="flex flex-wrap items-center gap-2">
+                                <div class="relative">
+                                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                                        <span class="material-symbols-outlined text-[16px]">search</span>
+                                    </span>
+                                    <input type="text"
+                                           x-model="search"
+                                           placeholder="Search member..."
+                                           class="h-9 w-40 sm:w-48 rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs text-slate-900 placeholder:text-slate-400 shadow-xs transition focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-600/30">
+                                </div>
+
+                                <div class="inline-flex rounded-xl bg-slate-200/60 p-1 text-xs">
+                                    <button type="button"
+                                            @click="selectedFilter = 'all'"
+                                            :class="selectedFilter === 'all' ? 'bg-white text-slate-900 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900'"
+                                            class="rounded-lg px-2.5 py-1 transition">
+                                        {{ __('All') }}
+                                    </button>
+                                    <button type="button"
+                                            @click="selectedFilter = 'manager'"
+                                            :class="selectedFilter === 'manager' ? 'bg-white text-slate-900 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900'"
+                                            class="rounded-lg px-2.5 py-1 transition">
+                                        {{ __('Managers') }}
+                                    </button>
+                                    <button type="button"
+                                            @click="selectedFilter = 'member'"
+                                            :class="selectedFilter === 'member' ? 'bg-white text-slate-900 shadow-xs font-semibold' : 'text-slate-600 hover:text-slate-900'"
+                                            class="rounded-lg px-2.5 py-1 transition">
+                                        {{ __('Members') }}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-slate-100">
-                                <thead class="bg-slate-50/50">
-                                    <tr>
-                                        <th scope="col" class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                            {{ __('Member') }}
-                                        </th>
-                                        <th scope="col" class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                            {{ __('Role Status') }}
-                                        </th>
-                                        <th scope="col" class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                            {{ __('Action') }}
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100 bg-white">
-                                    @foreach ($users as $user)
-                                        <tr class="transition hover:bg-slate-50/60">
-                                            <td class="px-6 py-4">
-                                                <div class="flex items-center gap-3.5">
-                                                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white shadow-sm ring-1 ring-slate-900/10" aria-hidden="true">
-                                                        {{ strtoupper(mb_substr($user->name, 0, 1)) }}
-                                                    </span>
+                        {{-- Cards Grid Container --}}
+                        <div class="p-6 bg-slate-50/40">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                @foreach ($users as $user)
+                                    @php
+                                        $primaryRole = $user->roles->first()?->name ?? $user->role ?? 'member';
+                                        $isManager   = strtolower((string)$primaryRole) === 'manager';
+                                        $isTeamLead  = strtolower((string)$primaryRole) === 'team lead';
+                                        $isCurrentUser = $user->id === auth()->id();
+
+                                        // Vibrant gradient palettes based on user identifier or role
+                                        $avatarGradients = [
+                                            'from-indigo-600 to-violet-700',
+                                            'from-blue-600 to-cyan-600',
+                                            'from-emerald-600 to-teal-700',
+                                            'from-slate-800 to-slate-950',
+                                            'from-purple-600 to-pink-600',
+                                        ];
+                                        $avatarGradient = $isManager
+                                            ? 'from-amber-500 to-orange-600'
+                                            : ($isTeamLead ? 'from-cyan-600 to-blue-700' : $avatarGradients[$user->id % count($avatarGradients)]);
+                                    @endphp
+
+                                    <div x-show="
+                                            (selectedFilter === 'all' ||
+                                             (selectedFilter === 'manager' && {{ $isManager ? 'true' : 'false' }}) ||
+                                             (selectedFilter === 'member' && {{ ! $isManager ? 'true' : 'false' }})) &&
+                                            ('{{ strtolower(addslashes($user->name)) }}'.includes(search.toLowerCase()) ||
+                                             '{{ strtolower(addslashes($user->email)) }}'.includes(search.toLowerCase()) ||
+                                             '{{ strtolower(addslashes($primaryRole)) }}'.includes(search.toLowerCase()))
+                                         "
+                                         x-transition:enter="transition ease-out duration-200"
+                                         x-transition:enter-start="opacity-0 scale-95"
+                                         x-transition:enter-end="opacity-100 scale-100"
+                                         class="group relative flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/10">
+
+                                        {{-- Top Decorative Corner Glow on Hover --}}
+                                        <div class="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br from-indigo-500/10 to-transparent blur-xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+
+                                        <div>
+                                            {{-- Card Header: Avatar + Identity + Status badge --}}
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div class="flex items-center gap-3">
+                                                    {{-- Animated Avatar with Initials --}}
+                                                    <div class="relative">
+                                                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br {{ $avatarGradient }} text-base font-bold text-white shadow-md shadow-slate-900/10 ring-2 ring-white transition-transform duration-300 group-hover:scale-105 group-hover:rotate-1">
+                                                            {{ strtoupper(mb_substr($user->name, 0, 1)) }}
+                                                        </span>
+                                                        <span class="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" title="{{ __('Active') }}"></span>
+                                                    </div>
+
                                                     <div class="min-w-0">
-                                                        <div class="flex items-center gap-2">
-                                                            <span class="truncate font-semibold text-slate-900 text-sm">{{ $user->name }}</span>
-                                                            @if ($user->id === auth()->id())
-                                                                <span class="inline-flex items-center rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/20">
+                                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                                            <h4 class="truncate text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                                                {{ $user->name }}
+                                                            </h4>
+                                                            @if ($isCurrentUser)
+                                                                <span class="inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-700 ring-1 ring-inset ring-indigo-600/20">
                                                                     {{ __('You') }}
                                                                 </span>
                                                             @endif
                                                         </div>
-                                                        <div class="truncate text-xs text-slate-500">{{ $user->email }}</div>
+                                                        <p class="truncate text-xs text-slate-500 mt-0.5" title="{{ $user->email }}">
+                                                            {{ $user->email }}
+                                                        </p>
                                                     </div>
                                                 </div>
-                                            </td>
 
-                                            <td class="px-6 py-4">
-                                                <div class="flex flex-wrap gap-1.5">
-                                                    @forelse ($user->roles->pluck('name') as $role)
-                                                        @php
-                                                            $isManager = strtolower($role) === 'manager';
-                                                            $badgeStyle = $isManager
-                                                                ? 'bg-amber-50 text-amber-800 ring-amber-600/20'
-                                                                : 'bg-emerald-50 text-emerald-800 ring-emerald-600/20';
-                                                        @endphp
-                                                        <span class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $badgeStyle }}">
-                                                            <span class="h-1.5 w-1.5 rounded-full {{ $isManager ? 'bg-amber-500' : 'bg-emerald-500' }}"></span>
-                                                            {{ $formatRole($role) }}
+                                                {{-- Role Badge --}}
+                                                <div>
+                                                    @if ($isManager)
+                                                        <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-600/20 shadow-xs">
+                                                            <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                                            {{ $formatRole($primaryRole) }}
                                                         </span>
-                                                    @empty
-                                                        <span class="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-inset ring-slate-400/20">
-                                                            {{ __('No role assigned') }}
+                                                    @elseif ($isTeamLead)
+                                                        <span class="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-800 ring-1 ring-inset ring-sky-600/20 shadow-xs">
+                                                            <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
+                                                            {{ $formatRole($primaryRole) }}
                                                         </span>
-                                                    @endforelse
-                                                </div>
-                                            </td>
-
-                                            <td class="px-6 py-4 text-right text-sm">
-                                                @can('roles.delete')
-                                                    @if ($user->id !== auth()->id())
-                                                        <form action="{{ route('projects.users.destroy', $user) }}" method="POST" class="inline"
-                                                              onsubmit="return confirm('Are you sure you want to remove {{ addslashes($user->name) }} from the system?');">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit"
-                                                                    class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500/20">
-                                                                <span class="material-symbols-outlined text-[15px]">delete</span>
-                                                                {{ __('Delete') }}
-                                                            </button>
-                                                        </form>
                                                     @else
-                                                        <span class="text-xs text-slate-400 italic">{{ __('Current user') }}</span>
+                                                        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/20 shadow-xs">
+                                                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                                            {{ $formatRole($primaryRole) }}
+                                                        </span>
                                                     @endif
-                                                @endcan
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                                                </div>
+                                            </div>
+
+                                            {{-- Mini Info Pills --}}
+                                            <div class="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                                                <span class="inline-flex items-center gap-1 rounded-lg bg-slate-100/80 px-2 py-0.5 font-medium text-slate-600">
+                                                    <span class="material-symbols-outlined text-[14px] text-slate-400">badge</span>
+                                                    ID #{{ $user->id }}
+                                                </span>
+                                                <span class="inline-flex items-center gap-1 rounded-lg bg-slate-100/80 px-2 py-0.5 font-medium text-slate-600">
+                                                    <span class="material-symbols-outlined text-[14px] text-slate-400">calendar_today</span>
+                                                    {{ $user->created_at ? $user->created_at->format('M Y') : 'Active' }}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {{-- Card Footer Action Bar --}}
+                                        <div class="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                                            @if (! $isCurrentUser)
+                                                <button type="button"
+                                                        @click="quickSelectUser({{ $user->id }})"
+                                                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                                                    <span class="material-symbols-outlined text-[16px]">tune</span>
+                                                    {{ __('Edit Role') }}
+                                                </button>
+                                            @else
+                                                <span class="text-xs text-slate-400 italic">
+                                                    {{ __('Logged in account') }}
+                                                </span>
+                                            @endif
+
+                                            @can('roles.delete')
+                                                @if (! $isCurrentUser)
+                                                    <form action="{{ route('projects.users.destroy', $user) }}" method="POST" class="inline"
+                                                          onsubmit="return confirm('Are you sure you want to remove {{ addslashes($user->name) }} from the system?');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit"
+                                                                title="{{ __('Delete Member') }}"
+                                                                class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 hover:text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500/20">
+                                                            <span class="material-symbols-outlined text-[15px]">delete</span>
+                                                            <span>{{ __('Delete') }}</span>
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                            @endcan
+                                        </div>
+
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
                     </section>
                 </div>
