@@ -53,7 +53,16 @@ class RoleController extends Controller
             ->orderBy('name')
             ->paginate(10);
 
-        return view('ProjectManagement::roles.index', compact('roles'));
+        $permissionGroups = $this->permissionGroups();
+        $assignablePermissions = request()->user()
+            ? request()->user()
+                ->getAllPermissions()
+                ->where('guard_name', 'web')
+                ->pluck('name')
+                ->all()
+            : [];
+
+        return view('ProjectManagement::roles.index', compact('roles', 'permissionGroups', 'assignablePermissions'));
     }
 
     public function create()

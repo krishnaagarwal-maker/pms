@@ -50,17 +50,17 @@ Route::middleware(['web', 'auth'])
             ->middleware('permission:roles.view')
             ->name('roles.index');
 
-        Route::get('/roles/create', [RoleController::class, 'create'])
-            ->middleware('permission:roles.create')
-            ->name('roles.create');
+        // Route::get('/roles/create', [RoleController::class, 'create'])
+        //     ->middleware('permission:roles.create')
+        //     ->name('roles.create');
 
         Route::post('/roles', [RoleController::class, 'store'])
             ->middleware('permission:roles.create')
             ->name('roles.store');
 
-        Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])
-            ->middleware('permission:roles.edit')
-            ->name('roles.edit');
+        // Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])
+        //     ->middleware('permission:roles.edit')
+        //     ->name('roles.edit');
 
         Route::put('/roles/{role}', [RoleController::class, 'update'])
             ->middleware('permission:roles.edit')
