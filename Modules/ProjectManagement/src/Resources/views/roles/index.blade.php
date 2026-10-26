@@ -201,7 +201,7 @@
             <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm animate-enter delay-100" aria-label="Roles">
                 <div class="flex flex-col gap-2 border-b border-slate-100 bg-slate-50/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h3 class="text-base font-bold text-slate-900">{{ __('Security Roles Directory') }}</h3>
+                        <h3 class="text-base font-bold text-slate-900">{{ __(' Roles Directory') }}</h3>
                         <p class="text-xs text-slate-500">{{ __('View permission allocations and connected user counts.') }}</p>
                     </div>
                     <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200">

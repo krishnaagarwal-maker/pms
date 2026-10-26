@@ -1,8 +1,8 @@
 {{-- resources/views/layouts/navigation.blade.php --}}
 {{--
-| Light-blue top bar + a command palette (Ctrl/Cmd + K) for jumping anywhere.
-| Needs Alpine.js v3 (ships with Breeze) and the Material Symbols font.
-| Give your layout's <main> the id "main-content" so the skip link has a target.
+|| Light-blue top bar + a command palette (Ctrl/Cmd + K) for jumping anywhere.
+|| Needs Alpine.js v3 (ships with Breeze) and the Material Symbols font.
+|| Give your layout's <main> the id "main-content" so the skip link has a target.
 --}}
 
 @php
@@ -413,59 +413,58 @@
     </div>
 
     {{-- Command palette --}}
-    <div x-show="palette" x-cloak class="fixed inset-0 z-[70] flex items-start justify-center px-4 pt-[12vh]" role="dialog" aria-modal="true" aria-label="Search and jump to">
-        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-             x-on:click="palette = false"
-             x-show="palette"
-             x-transition.opacity.duration.150ms></div>
+    <div x-show="palette" x-cloak class="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="Search and jump to"
+         x-on:click="palette = false">
+        <div class="flex items-start justify-center px-4 pt-[12vh] h-full w-full">
+            <div class="relative w-full max-w-xl overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-900/10"
+                 x-show="palette"
+                 x-on:click.stop
+                 x-transition:enter="transition ease-out duration-150"
+                 x-transition:enter-start="opacity-0 scale-95"
+                 x-transition:enter-end="opacity-100 scale-100">
 
-        <div class="relative w-full max-w-xl overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-900/10"
-             x-show="palette"
-             x-transition:enter="transition ease-out duration-150"
-             x-transition:enter-start="opacity-0 scale-95"
-             x-transition:enter-end="opacity-100 scale-100">
+                <div class="flex items-center gap-3 border-b border-slate-200 px-4">
+                    <span class="material-symbols-outlined text-[20px] text-slate-400" aria-hidden="true">search</span>
+                    <input x-ref="q" x-model="q" type="text" autocomplete="off" spellcheck="false"
+                           placeholder="Search pages and actions…"
+                           aria-label="Search pages and actions"
+                           x-on:input="idx = 0"
+                           x-on:keydown.arrow-down.prevent="move(1)"
+                           x-on:keydown.arrow-up.prevent="move(-1)"
+                           x-on:keydown.enter.prevent="results[idx] && go(results[idx])"
+                           class="h-14 w-full border-0 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0">
+                    <button type="button" x-on:click="palette = false"
+                            class="rounded-md border border-slate-200 px-1.5 py-0.5 font-code-sm text-[11px] text-slate-500 hover:bg-slate-50 {{ $ringLite }}">Esc</button>
+                </div>
 
-            <div class="flex items-center gap-3 border-b border-slate-200 px-4">
-                <span class="material-symbols-outlined text-[20px] text-slate-400" aria-hidden="true">search</span>
-                <input x-ref="q" x-model="q" type="text" autocomplete="off" spellcheck="false"
-                       placeholder="Search pages and actions…"
-                       aria-label="Search pages and actions"
-                       x-on:input="idx = 0"
-                       x-on:keydown.arrow-down.prevent="move(1)"
-                       x-on:keydown.arrow-up.prevent="move(-1)"
-                       x-on:keydown.enter.prevent="results[idx] && go(results[idx])"
-                       class="h-14 w-full border-0 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0">
-                <button type="button" x-on:click="palette = false"
-                        class="rounded-md border border-slate-200 px-1.5 py-0.5 font-code-sm text-[11px] text-slate-500 hover:bg-slate-50 {{ $ringLite }}">Esc</button>
-            </div>
+                <div class="max-h-80 overflow-y-auto p-2" role="listbox">
+                    <template x-for="(item, i) in results" :key="item.id">
+                        <div>
+                            <p x-show="i === 0 || results[i - 1].group !== item.group"
+                               class="px-3 pb-1 pt-3 text-xs font-semibold text-slate-400" x-text="item.group"></p>
+                            <button type="button" role="option"
+                                    x-bind:id="'cmd-' + i"
+                                    x-bind:aria-selected="(i === idx).toString()"
+                                    x-on:click="go(item)"
+                                    x-on:mouseenter="idx = i"
+                                    x-bind:class="i === idx ? 'bg-indigo-50 text-slate-900' : 'text-slate-600'"
+                                    class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium focus:outline-none">
+                                <span class="material-symbols-outlined text-[20px]" x-bind:class="i === idx ? 'text-indigo-600' : 'text-slate-400'" aria-hidden="true" x-text="item.icon"></span>
+                                <span class="flex-1" x-text="item.label"></span>
+                                <span x-show="i === idx" class="text-xs text-slate-400">Enter</span>
+                            </button>
+                        </div>
+                    </template>
 
-            <div class="max-h-80 overflow-y-auto p-2" role="listbox">
-                <template x-for="(item, i) in results" :key="item.id">
-                    <div>
-                        <p x-show="i === 0 || results[i - 1].group !== item.group"
-                           class="px-3 pb-1 pt-3 text-xs font-semibold text-slate-400" x-text="item.group"></p>
-                        <button type="button" role="option"
-                                x-bind:id="'cmd-' + i"
-                                x-bind:aria-selected="(i === idx).toString()"
-                                x-on:click="go(item)"
-                                x-on:mouseenter="idx = i"
-                                x-bind:class="i === idx ? 'bg-indigo-50 text-slate-900' : 'text-slate-600'"
-                                class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium focus:outline-none">
-                            <span class="material-symbols-outlined text-[20px]" x-bind:class="i === idx ? 'text-indigo-600' : 'text-slate-400'" aria-hidden="true" x-text="item.icon"></span>
-                            <span class="flex-1" x-text="item.label"></span>
-                            <span x-show="i === idx" class="text-xs text-slate-400">Enter</span>
-                        </button>
-                    </div>
-                </template>
+                    <p x-show="results.length === 0" class="px-3 py-8 text-center text-sm text-slate-500"
+                       x-text="'No matches for \"' + q + '\"'"></p>
+                </div>
 
-                <p x-show="results.length === 0" class="px-3 py-8 text-center text-sm text-slate-500"
-                   x-text="'No matches for “' + q + '”'"></p>
-            </div>
-
-            <div class="flex items-center gap-4 border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-500">
-                <span><kbd class="font-code-sm">↑↓</kbd> to move</span>
-                <span><kbd class="font-code-sm">Enter</kbd> to open</span>
-                <span><kbd class="font-code-sm">Esc</kbd> to close</span>
+                <div class="flex items-center gap-4 border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-500">
+                    <span><kbd class="font-code-sm">↑↓</kbd> to move</span>
+                    <span><kbd class="font-code-sm">Enter</kbd> to open</span>
+                    <span><kbd class="font-code-sm">Esc</kbd> to close</span>
+                </div>
             </div>
         </div>
     </div>
