@@ -5,92 +5,72 @@ namespace Modules\ProjectManagement\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Notifications\SystemNotification;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
+use Illuminate\View\View;
 use Modules\ProjectManagement\Models\Project;
 
 class ProjectController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     *
-     * @return Response
+     * Display a listing of projects.
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $user = $request->user();
         $projects = Project::visibleTo($user)
-            ->with(['tasks' => function ($query) use ($user) {
-                $query->visibleTo($user)->with('assignee');
-            }])
+            ->with(['tasks' => fn ($q) => $q->visibleTo($user)->with('assignee')])
             ->latest()
             ->paginate(12);
 
         $allProjects = Project::visibleTo($user)
-            ->with(['tasks' => function ($query) use ($user) {
-                $query->visibleTo($user);
-            }])
+            ->with(['tasks' => fn ($q) => $q->visibleTo($user)])
             ->get();
 
         return view('ProjectManagement::projects.index', compact('projects', 'allProjects'));
     }
 
     /**
-     * Show the form for creating a new resource.
-     *
-     * @return Response
+     * Show the project creation form.
      */
-    public function create()
+    public function create(): View
     {
         return view('ProjectManagement::projects.create');
     }
 
     /**
-     * Store a newly created resource in storage.
-     *
-     * @return Response
+     * Store a newly created project.
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'attachments' => ['nullable'],
+            'name'          => ['required', 'string', 'max:255'],
+            'description'   => ['nullable', 'string'],
+            'start_date'    => ['nullable', 'date'],
+            'end_date'      => ['nullable', 'date', 'after_or_equal:start_date'],
+            'attachments'   => ['nullable'],
             'attachments.*' => ['file', 'max:25600'],
         ]);
 
         $project = Project::create([
-            'name' => $validated['name'],
+            'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'start_date' => $validated['start_date'] ?? null,
-            'end_date' => $validated['end_date'] ?? null,
+            'start_date'  => $validated['start_date'] ?? null,
+            'end_date'    => $validated['end_date'] ?? null,
         ]);
 
         $this->storeAttachments($request, $project);
+        $this->notifyProjectManagers('Project created: ' . $project->name, route('projects.show', $project), 'project_created');
 
-        $this->notifyProjectManagers(
-            'Project created: '.$project->name,
-            route('projects.show', $project),
-            'project_created'
-        );
-
-        return redirect()
-            ->route('projects.index')
-            ->with('success', 'Project created successfully.');
+        return redirect()->route('projects.index')->with('success', 'Project created successfully.');
     }
 
     /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Project  $project
-     * @return Response
+     * Display the specified project.
      */
-    public function show(Request $request, Project $project)
+    public function show(Request $request, Project $project): View
     {
         $this->ensureVisibleTo($request->user(), $project);
-
         $project->load(['attachments.uploader']);
 
         $tasks = $project->tasks()
@@ -103,99 +83,68 @@ class ProjectController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Project  $project
-     * @return Response
+     * Show the project edit form.
      */
-    public function edit(Request $request, Project $project)
+    public function edit(Request $request, Project $project): View
     {
         $this->ensureVisibleTo($request->user(), $project);
-
         $project->load(['attachments.uploader']);
 
         return view('ProjectManagement::projects.edit', compact('project'));
     }
 
     /**
-     * Update the specified resource in storage.
-     *
-     * @param  \App\Models\Project  $project
-     * @return Response
+     * Update the specified project.
      */
-    public function update(Request $request, Project $project)
+    public function update(Request $request, Project $project): RedirectResponse
     {
         $this->ensureVisibleTo($request->user(), $project);
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'attachments' => ['nullable'],
+            'name'          => ['required', 'string', 'max:255'],
+            'description'   => ['nullable', 'string'],
+            'start_date'    => ['nullable', 'date'],
+            'end_date'      => ['nullable', 'date', 'after_or_equal:start_date'],
+            'attachments'   => ['nullable'],
             'attachments.*' => ['file', 'max:25600'],
         ]);
 
         $project->update([
-            'name' => $validated['name'],
+            'name'        => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'start_date' => $validated['start_date'] ?? null,
-            'end_date' => $validated['end_date'] ?? null,
+            'start_date'  => $validated['start_date'] ?? null,
+            'end_date'    => $validated['end_date'] ?? null,
         ]);
 
         $this->storeAttachments($request, $project);
+        $this->notifyProjectManagers('Project updated: ' . $project->name, route('projects.show', $project), 'project_updated');
 
-        $this->notifyProjectManagers(
-            'Project updated: '.$project->name,
-            route('projects.show', $project),
-            'project_updated'
-        );
-
-        return redirect()
-            ->route('projects.index')
-            ->with('success', 'Project updated successfully.');
+        return redirect()->route('projects.index')->with('success', 'Project updated successfully.');
     }
 
     /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Project  $project
-     * @return Response
+     * Remove the specified project.
      */
-    public function destroy(Request $request, Project $project)
+    public function destroy(Request $request, Project $project): RedirectResponse
     {
         $this->ensureVisibleTo($request->user(), $project);
 
         $projectName = $project->name;
         $project->delete();
 
-        $this->notifyProjectManagers(
-            'Project deleted: '.$projectName,
-            route('projects.index'),
-            'project_deleted'
-        );
+        $this->notifyProjectManagers('Project deleted: ' . $projectName, route('projects.index'), 'project_deleted');
 
-        return redirect()
-            ->route('projects.index')
-            ->with('success', 'Project "'.$projectName.'" deleted successfully.');
+        return redirect()->route('projects.index')->with('success', 'Project "' . $projectName . '" deleted successfully.');
     }
 
     /**
      * Notify users who have permission to assign tasks.
      */
-    private function notifyProjectManagers(
-        string $message,
-        ?string $link = null,
-        string $type = 'system'
-    ): void {
-        User::query()
-            ->get()
+    private function notifyProjectManagers(string $message, ?string $link = null, string $type = 'system'): void
+    {
+        User::query()->get()
             ->filter(fn (User $user) => $user->can('tasks.assign'))
-            ->each(function (User $user) use ($message, $link, $type) {
-                $user->notify(
-                    new SystemNotification('System update', $message, $link, $type)
-                );
-            });
+            ->each(fn (User $user) => $user->notify(new SystemNotification('System update', $message, $link, $type)));
     }
 
     /**
@@ -219,29 +168,22 @@ class ProjectController extends Controller
             return;
         }
 
-        $uploadedFiles = $request->file('attachments');
-
-        $files = is_array($uploadedFiles)
-            ? $uploadedFiles
-            : [$uploadedFiles];
+        $files = is_array($request->file('attachments')) ? $request->file('attachments') : [$request->file('attachments')];
 
         foreach ($files as $file) {
             if (! $file || ! $file->isValid()) {
                 continue;
             }
 
-            $path = $file->store(
-                "attachments/projects/{$project->id}",
-                'public'
-            );
+            $path = $file->store("attachments/projects/{$project->id}", 'public');
 
             $project->attachments()->create([
                 'uploaded_by' => $request->user()->id,
-                'file_name' => $file->getClientOriginalName(),
-                'file_path' => $path,
-                'file_size' => $file->getSize() ?: 0,
-                'mime_type' => $file->getClientMimeType() ?: $file->getMimeType(),
-                'disk' => 'public',
+                'file_name'   => $file->getClientOriginalName(),
+                'file_path'   => $path,
+                'file_size'   => $file->getSize() ?: 0,
+                'mime_type'   => $file->getClientMimeType() ?: $file->getMimeType(),
+                'disk'        => 'public',
             ]);
         }
     }

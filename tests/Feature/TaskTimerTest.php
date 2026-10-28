@@ -376,5 +376,124 @@ class TaskTimerTest extends TestCase
             ->assertDontSeeText('Time by Team Member')
             ->assertDontSeeText('Open Date-wise History');
     }
+
+    public function test_cannot_start_timer_if_task_deadline_has_passed(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['tasks.view', 'tasks.update-status']);
+
+        $project = Project::create([
+            'name'       => 'Overdue Project',
+            'status'     => 'in_progress',
+            'created_by' => $user->id,
+        ]);
+
+        $task = Task::create([
+            'project_id'  => $project->id,
+            'title'       => 'Overdue Task',
+            'assigned_to' => $user->id,
+            'status'      => 'in_progress',
+            'priority'    => 'high',
+            'due_date'    => now()->subDays(2),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson(route('projects.tasks.timer.start', [$project, $task]));
+
+        $response->assertForbidden()
+            ->assertJsonPath('message', 'The deadline for this task has passed. Timer cannot be started.');
+
+        $this->assertDatabaseMissing('task_timers', [
+            'task_id' => $task->id,
+        ]);
+    }
+
+    public function test_cannot_start_timer_if_task_is_completed(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['tasks.view', 'tasks.update-status']);
+
+        $project = Project::create([
+            'name'       => 'Finished Project',
+            'status'     => 'in_progress',
+            'created_by' => $user->id,
+        ]);
+
+        $task = Task::create([
+            'project_id'  => $project->id,
+            'title'       => 'Completed Task',
+            'assigned_to' => $user->id,
+            'status'      => 'completed',
+            'priority'    => 'low',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson(route('projects.tasks.timer.start', [$project, $task]));
+
+        $response->assertForbidden()
+            ->assertJsonPath('message', 'This task is completed. Timer cannot be started.');
+    }
+
+    public function test_can_stop_running_timer_even_if_deadline_has_passed(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['tasks.view', 'tasks.update-status']);
+
+        $project = Project::create([
+            'name'       => 'Active Session Project',
+            'status'     => 'in_progress',
+            'created_by' => $user->id,
+        ]);
+
+        $task = Task::create([
+            'project_id'  => $project->id,
+            'title'       => 'Active Session Task',
+            'assigned_to' => $user->id,
+            'status'      => 'in_progress',
+            'priority'    => 'medium',
+            'due_date'    => now()->subDay(),
+        ]);
+
+        TaskTimer::create([
+            'task_id'    => $task->id,
+            'started_by' => $user->id,
+            'started_at' => now()->subHour(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson(route('projects.tasks.timer.stop', [$project, $task]));
+
+        $response->assertOk()
+            ->assertJsonPath('state.running', false);
+    }
+
+    public function test_task_show_view_renders_deadline_passed_locked_badge(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['projects.view', 'tasks.view', 'tasks.update-status']);
+
+        $project = Project::create([
+            'name'       => 'Show Overdue Project',
+            'status'     => 'in_progress',
+            'created_by' => $user->id,
+        ]);
+
+        $task = Task::create([
+            'project_id'  => $project->id,
+            'title'       => 'Show Overdue Task',
+            'assigned_to' => $user->id,
+            'status'      => 'in_progress',
+            'priority'    => 'high',
+            'due_date'    => now()->subDay(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('projects.tasks.show', [$project, $task]));
+
+        $response->assertOk()
+            ->assertSeeText('Deadline passed · Timer locked')
+            ->assertDontSeeText('Start Timer');
+    }
 }
+
 

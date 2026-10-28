@@ -14,28 +14,41 @@ class TaskTimerController extends Controller
 {
     /**
      * Start a timer session for a task.
-     * Only one timer session may run per task at a time.
      */
-    public function start(
-        Request $request,
-        Project $project,
-        Task $task
-    ): JsonResponse {
+    public function start(Request $request, Project $project, Task $task): JsonResponse
+    {
         $this->authorizeTimer($request, $project, $task);
 
-        $alreadyRunning = DB::transaction(function () use ($request, $task) {
-            // Lock the task row to prevent concurrent starts.
+        if ($task->due_date && $task->due_date->startOfDay()->lt(today())) {
+            return response()->json([
+                'message' => 'The deadline for this task has passed. Timer cannot be started.',
+                'state'   => $task->fresh()->timerState(),
+            ], 403);
+        }
 
-            $lockedTask = Task:: whereKey($task->id)
-            ->lockForUpdate() 
-            ->firstOrFail();
+        if (in_array($task->status, ['completed', 'done'], true)) {
+            return response()->json([
+                'message' => 'This task is completed. Timer cannot be started.',
+                'state'   => $task->fresh()->timerState(),
+            ], 403);
+        }
+
+        if ($project->end_date && $project->end_date->startOfDay()->lt(today())) {
+            return response()->json([
+                'message' => 'The project deadline has passed. Timer cannot be started.',
+                'state'   => $task->fresh()->timerState(),
+            ], 403);
+        }
+
+        $alreadyRunning = DB::transaction(function () use ($request, $task) {
+            $lockedTask = Task::whereKey($task->id)->lockForUpdate()->firstOrFail();
 
             if ($lockedTask->timeEntries()->whereNull('stopped_at')->exists()) {
                 return true;
             }
 
             $lockedTask->timeEntries()->create([
-                'started_by' => $request->user()->id, 
+                'started_by' => $request->user()->id,
                 'started_at' => now(),
             ]);
 
@@ -45,39 +58,26 @@ class TaskTimerController extends Controller
         if ($alreadyRunning) {
             return response()->json([
                 'message' => 'A timer session is already active.',
-                'state' => $task->fresh()->timerState(),
+                'state'   => $task->fresh()->timerState(),
             ], 409);
         }
 
         return response()->json([
             'message' => 'Timer started.',
-            'state' => $task->fresh()->timerState(),
+            'state'   => $task->fresh()->timerState(),
         ]);
     }
 
     /**
      * Stop the active timer session.
-     * Managers can stop any active session.
-     * Team Members can stop only their own session.
      */
-
-    public function stop(
-        Request $request,
-        Project $project,
-        Task $task
-    ): JsonResponse {
+    public function stop(Request $request, Project $project, Task $task): JsonResponse
+    {
         $this->authorizeTimer($request, $project, $task);
 
         $result = DB::transaction(function () use ($request, $task) {
-            $lockedTask = Task::whereKey($task->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $query = $lockedTask->timeEntries()
-                ->whereNull('stopped_at');
-
-            // Team Members cannot stop another person's timer.
-
+            $lockedTask = Task::whereKey($task->id)->lockForUpdate()->firstOrFail();
+            $query = $lockedTask->timeEntries()->whereNull('stopped_at');
 
             if (! $request->user()->can('tasks.edit')) {
                 $query->where('started_by', $request->user()->id);
@@ -86,27 +86,14 @@ class TaskTimerController extends Controller
             $entry = $query->first();
 
             if (! $entry) {
-                $anotherTimerIsRunning = $lockedTask->timeEntries()
-                    ->whereNull('stopped_at')
-                    ->exists();
-
-                return $anotherTimerIsRunning
-                    ? 'not_owner'
-                    : 'not_running';
+                return $lockedTask->timeEntries()->whereNull('stopped_at')->exists() ? 'not_owner' : 'not_running';
             }
 
             $stoppedAt = now();
-
-            $durationSeconds = max(
-                0,
-                $stoppedAt->getTimestamp()
-                    - $entry->started_at->getTimestamp()
-            );
-
             $entry->update([
-                'stopped_at' => $stoppedAt,
-                'stopped_by' => $request->user()->id,
-                'duration_seconds' => $durationSeconds,
+                'stopped_at'       => $stoppedAt,
+                'stopped_by'       => $request->user()->id,
+                'duration_seconds' => max(0, $stoppedAt->getTimestamp() - $entry->started_at->getTimestamp()),
             ]);
 
             return 'stopped';
@@ -115,92 +102,62 @@ class TaskTimerController extends Controller
         if ($result === 'not_owner') {
             return response()->json([
                 'message' => 'You can only stop a timer session you started.',
-                'state' => $task->fresh()->timerState(),
+                'state'   => $task->fresh()->timerState(),
             ], 403);
         }
 
         if ($result === 'not_running') {
             return response()->json([
                 'message' => 'The timer is not running.',
-                'state' => $task->fresh()->timerState(),
+                'state'   => $task->fresh()->timerState(),
             ], 409);
         }
 
         return response()->json([
             'message' => 'Session recorded in timesheet.',
-            'state' => $task->fresh()->timerState(),
+            'state'   => $task->fresh()->timerState(),
         ]);
     }
 
     /**
      * Delete a timer session.
      */
-    public function destroy(
-        Request $request,
-        Project $project,
-        Task $task,
-        TaskTimer $timer
-    ): JsonResponse {
-        abort_unless(
-            (int) $task->project_id === (int) $project->id,
-            404
-        );
-
-        abort_unless(
-            (int) $timer->task_id === (int) $task->id,
-            404
-        );
+    public function destroy(Request $request, Project $project, Task $task, TaskTimer $timer): JsonResponse
+    {
+        abort_unless((int) $task->project_id === (int) $project->id, 404);
+        abort_unless((int) $timer->task_id === (int) $task->id, 404);
 
         $user = $request->user();
+        $isAuthorized = $user->can('tasks.edit') || (int) $timer->started_by === (int) $user->id;
+        abort_unless($isAuthorized, 403, 'You are not allowed to delete this timer session.');
 
-        $isManager = $user->can('tasks.edit');
-        $isOwner = (int) $timer->started_by === (int) $user->id;
-
-        abort_unless(
-            $isManager || $isOwner,
-            403,
-            'You are not allowed to delete this timer session.'
-        );
-
-        // Do not silently delete a running session.
         if ($timer->stopped_at === null) {
             return response()->json([
                 'message' => 'Stop the timer before deleting its session.',
-                'state' => $task->fresh()->timerState(),
+                'state'   => $task->fresh()->timerState(),
             ], 409);
         }
+
         $timer->delete();
 
         return response()->json([
             'message' => 'Session entry deleted.',
-            'state' => $task->fresh()->timerState(),
+            'state'   => $task->fresh()->timerState(),
         ]);
     }
-    /**
-     * Verify that the task belongs to the supplied project and
-     * the user has permission to control its timer.
-     */
 
-    private function authorizeTimer(
-        Request $request,
-        Project $project,
-        Task $task
-    ): void {
-        abort_unless(
-            (int) $task->project_id === (int) $project->id,
-            404
-        );
+    /**
+     * Verify that the task belongs to the project and user has permission.
+     */
+    private function authorizeTimer(Request $request, Project $project, Task $task): void
+    {
+        abort_unless((int) $task->project_id === (int) $project->id, 404);
 
         $user = $request->user();
         abort_unless(
-            $user && (
-                $user->can('tasks.edit')
-                || (
-                    (int) $task->assigned_to === (int) $user->id
-                    && $user->can('tasks.update-status')
-                )
-            ),
-            403
+            $user && ($user->can('tasks.edit') || ((int) $task->assigned_to === (int) $user->id && $user->can('tasks.update-status'))),
+            403,
+            'You are not authorized to track time on this task.'
         );
     }
 }

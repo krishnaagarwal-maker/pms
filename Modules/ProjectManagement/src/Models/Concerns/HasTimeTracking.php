@@ -34,7 +34,6 @@ trait HasTimeTracking
     /**
      * Returns structured state for the Time Tracker & Timesheet card and API responses.
      */
-
     public function timerState(): array
     {
         $running = $this->timeEntries()->whereNull('stopped_at')->with('starter:id,name')->first();
@@ -57,7 +56,7 @@ trait HasTimeTracking
             if ($entry->stopped_at !== null) {
                 $uid = $entry->started_by ?: 0;
                 $uname = $entry->starter?->name ?? 'Unassigned';
-                if (!isset($byUser[$uid])) {
+                if (! isset($byUser[$uid])) {
                     $byUser[$uid] = [
                         'user_id'    => $uid,
                         'name'       => $uname,
@@ -66,7 +65,7 @@ trait HasTimeTracking
                         'percentage' => 0,
                     ];
                 }
-                
+
                 $byUser[$uid]['seconds'] += (int) $entry->duration_seconds;
             }
         }
@@ -91,7 +90,6 @@ trait HasTimeTracking
             'by_user'         => array_values($byUser),
             'entries'         => $entries,
             'server_now'      => (int) round(microtime(true) * 1000),
-
         ];
     }
 }

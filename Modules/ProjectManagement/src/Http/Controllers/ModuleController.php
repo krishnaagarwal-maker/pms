@@ -9,4 +9,4 @@ use Illuminate\Routing\Controller as BaseController;
 class ModuleController extends BaseController
 {
     use AuthorizesRequests, ValidatesRequests;
-} 
+}

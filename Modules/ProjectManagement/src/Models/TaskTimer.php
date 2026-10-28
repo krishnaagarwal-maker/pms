@@ -43,7 +43,7 @@ class TaskTimer extends Model
     }
 
     /**
-     * Format seconds into human-readable e.g. "2h 15m" or "45m".
+     * Format seconds into human-readable duration, e.g. "2h 15m" or "45m".
      */
     public static function formatDuration(?int $seconds): string
     {
@@ -64,11 +64,7 @@ class TaskTimer extends Model
             $parts[] = "{$m}m";
         }
 
-        if (empty($parts)) {
-            return "{$s}s";
-        }
-
-        return implode(' ', $parts);
+        return ! empty($parts) ? implode(' ', $parts) : "{$s}s";
     }
 
     /**

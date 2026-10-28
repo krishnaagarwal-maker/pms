@@ -67,8 +67,12 @@
     $nextTask = (clone $visibleProjectTasks)->where('id', '>', $task->id)->orderBy('id')->first();
 
     // Time Tracker & Timesheet
+    $isDone = in_array($task->status, ['completed', 'done'], true);
+    $isDeadlineOver = ($task->due_date && $task->due_date->copy()->startOfDay()->lt(now()->startOfDay()))
+        || ($project->end_date && $project->end_date->copy()->startOfDay()->lt(now()->startOfDay()));
     $canControlTimer = auth()->user()->can('tasks.edit')
         || ((int) $task->assigned_to === (int) auth()->id() && auth()->user()->can('tasks.update-status'));
+    $canStartTimer = $canControlTimer && ! $isDeadlineOver && ! $isDone;
     $timerConfig = [
         'startUrl'   => route('projects.tasks.timer.start', [$project, $task]),
         'stopUrl'    => route('projects.tasks.timer.stop', [$project, $task]),
@@ -871,21 +875,32 @@
                             {{-- Small Cute Action Button: Green Start / Red Stop --}}
                             <div class="mt-space-md flex flex-col items-center justify-center py-1">
                                 @if ($canControlTimer)
-                                    {{-- Cute Green Start Button --}}
-                                    <button type="button" @click="startTimer()" :disabled="loading"
-                                            x-show="!running"
-                                            x-transition:enter="transition ease-out duration-200"
-                                            x-transition:enter-start="opacity-0 scale-90"
-                                            x-transition:enter-end="opacity-100 scale-100"
-                                            x-transition:leave="transition ease-in duration-150"
-                                            x-transition:leave-start="opacity-100 scale-100"
-                                            x-transition:leave-end="opacity-0 scale-90"
-                                            class="group inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2 text-label-md font-semibold text-white shadow-sm transition-all duration-200 hover:bg-emerald-600 hover:shadow-md hover:shadow-emerald-500/20 active:scale-95 disabled:opacity-60 cursor-pointer {{ $focus }}">
-                                        <span class="material-symbols-outlined text-[18px] transition-transform duration-200 group-hover:scale-110">play_arrow</span>
-                                        <span>Start </span>
-                                    </button>
+                                    @if ($canStartTimer)
+                                        {{-- Cute Green Start Button --}}
+                                        <button type="button" @click="startTimer()" :disabled="loading"
+                                                x-show="!running"
+                                                x-transition:enter="transition ease-out duration-200"
+                                                x-transition:enter-start="opacity-0 scale-90"
+                                                x-transition:enter-end="opacity-100 scale-100"
+                                                x-transition:leave="transition ease-in duration-150"
+                                                x-transition:leave-start="opacity-100 scale-100"
+                                                x-transition:leave-end="opacity-0 scale-90"
+                                                class="group inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2 text-label-md font-semibold text-white shadow-sm transition-all duration-200 hover:bg-emerald-600 hover:shadow-md hover:shadow-emerald-500/20 active:scale-95 disabled:opacity-60 cursor-pointer {{ $focus }}">
+                                            <span class="material-symbols-outlined text-[18px] transition-transform duration-200 group-hover:scale-110">play_arrow</span>
+                                            <span>Start </span><span class="sr-only">Timer</span>
+                                        </button>
+                                    @else
+                                        <div x-show="!running" class="inline-flex items-center gap-1.5 rounded-full border border-error/30 bg-error/10 px-3.5 py-1.5 text-[12px] font-medium text-error shadow-sm">
+                                            <span class="material-symbols-outlined text-[16px]">lock_clock</span>
+                                            @if ($isDone)
+                                                <span>Task completed</span>
+                                            @else
+                                                <span>Deadline passed</span>
+                                            @endif
+                                        </div>
+                                    @endif
 
-                                    {{--  Red Stop Button --}}
+                                    {{-- Red Stop Button --}}
                                     <button type="button" @click="stopTimer()" :disabled="loading"
                                             x-show="running"
                                             x-cloak
@@ -898,9 +913,7 @@
                                             class="group relative inline-flex items-center gap-2 rounded-full bg-rose-500 px-5 py-2 text-label-md font-semibold text-white shadow-sm transition-all duration-200 hover:bg-rose-600 hover:shadow-md hover:shadow-rose-500/20 active:scale-95 disabled:opacity-60 cursor-pointer {{ $focus }}">
                                         <span class="relative flex h-2 w-2">
                                             <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75"></span>
-                                      
                                         </span>
-                                     
                                         <span>Stop </span>
                                     </button>
 
@@ -908,9 +921,9 @@
                                          active · Started by <span class="font-semibold text-on-surface" x-text="startedBy"></span>
                                     </p>
                                 @else
-                                    <div class="inline-flex items-center gap-1.5 rounded-full bg-surface-container-low px-3 py-1.5 text-body-xs text-on-surface-variant">
-                                        <span class="material-symbols-outlined text-[14px]">lock</span>
-                                        <span>Assignee or manager only</span>
+                                    <div class="inline-flex items-center gap-1.5 rounded-full border border-surface-container-high bg-surface-container-low px-3.5 py-1.5 text-[12px] font-medium text-on-surface-variant">
+                                        <span class="material-symbols-outlined text-[16px]">lock</span>
+                                        <span>View only · Assigned member only</span>
                                     </div>
                                 @endif
                             </div>
