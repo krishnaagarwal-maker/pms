@@ -17,8 +17,10 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
-    public function boot(): void
-    {
-        //
-    }
+    // public function boot(): void
+    // {
+    //      if (env('APP_ENV') !== 'local' || isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+    //     URL::forceScheme('https');
+    // }
 }
+

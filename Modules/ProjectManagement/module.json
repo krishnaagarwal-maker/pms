@@ -1,8 +1,8 @@
 {
     "name": "ProjectManagement",
     "version": "1.0.0",
-    "enabled": false,
-    "last_enabled_at": null,
+    "enabled": true,
+    "last_enabled_at": "2026-10-27T10:56:24+00:00",
     "last_disabled_at": null,
     "applied_migrations": [],
     "failed_migrations": [],

@@ -1,13 +1,15 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\ProjectManagement\Http\Controllers\AttachmentController;
+use Modules\ProjectManagement\Http\Controllers\DashboardController;
 use Modules\ProjectManagement\Http\Controllers\HomeController;
 use Modules\ProjectManagement\Http\Controllers\ProjectController;
 use Modules\ProjectManagement\Http\Controllers\RoleController;
+use Modules\ProjectManagement\Http\Controllers\TaskCommentController;
 use Modules\ProjectManagement\Http\Controllers\TaskController;
-use Modules\ProjectManagement\Http\Controllers\DashboardController;
+use Modules\ProjectManagement\Http\Controllers\TaskTimerController;
 use Modules\ProjectManagement\Http\Controllers\UserRoleController;
-use Modules\ProjectManagement\Http\Controllers\AttachmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -43,7 +45,7 @@ Route::middleware(['web', 'auth'])
             ->middleware('permission:tasks.view')
             ->name('my-tasks');
 
-            // Role Management routes
+        // Role Management routes
 
         // Role Management routes
         Route::get('/roles', [RoleController::class, 'index'])
@@ -97,6 +99,15 @@ Route::middleware(['web', 'auth'])
         Route::post('/{project}/attachments', [AttachmentController::class, 'storeProject'])->name('attachments.store');
         Route::post('/{project}/tasks/{task}/attachments', [AttachmentController::class, 'storeTask'])->name('tasks.attachments.store');
         Route::get('/{project}/tasks/{task}', [TaskController::class, 'show'])->middleware('permission:tasks.view')->name('tasks.show');
+        Route::post('/{project}/tasks/{task}/comments', [TaskCommentController::class, 'store'])
+            ->middleware('permission:tasks.view')
+            ->name('tasks.comments.store');
+        Route::put('/{project}/tasks/{task}/comments/{comment}', [TaskCommentController::class, 'update'])
+            ->middleware('permission:tasks.view')
+            ->name('tasks.comments.update');
+        Route::delete('/{project}/tasks/{task}/comments/{comment}', [TaskCommentController::class, 'destroy'])
+            ->middleware('permission:tasks.view')
+            ->name('tasks.comments.destroy');
         Route::get('/{project}/tasks/{task}/edit', [TaskController::class, 'edit'])->middleware('permission:tasks.edit')->name('tasks.edit');
         Route::put('/{project}/tasks/{task}', [TaskController::class, 'update'])
             ->middleware('permission:tasks.edit|tasks.update-status')
@@ -108,5 +119,19 @@ Route::middleware(['web', 'auth'])
         Route::get('/{project}/edit', [ProjectController::class, 'edit'])->middleware('permission:projects.edit')->name('edit');
         Route::put('/{project}', [ProjectController::class, 'update'])->middleware('permission:projects.edit')->name('update');
         Route::delete('/{project}', [ProjectController::class, 'destroy'])->middleware('permission:projects.delete')->name('destroy');
+        
+
+        Route::post('/{project}/tasks/{task}/timer/start', [TaskTimerController::class, 'start'])
+            ->name('tasks.timer.start')
+            ->middleware(['auth', 'verified']);
+
+        Route::post('/{project}/tasks/{task}/timer/stop', [TaskTimerController::class, 'stop'])
+            ->name('tasks.timer.stop')
+            ->middleware(['auth', 'verified']);
+            
+
+        Route::delete('/{project}/tasks/{task}/timer/{timer}', [TaskTimerController::class, 'destroy'])
+            ->name('tasks.timer.destroy')
+            ->middleware(['auth', 'verified']);
 
     });

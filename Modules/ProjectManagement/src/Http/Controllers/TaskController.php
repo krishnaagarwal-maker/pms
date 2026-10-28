@@ -188,7 +188,7 @@ class TaskController extends Controller
     {
         $task = $project->tasks()
             ->visibleTo(request()->user())
-            ->with(['assignee', 'attachments.uploader'])
+            ->with(['assignee', 'attachments.uploader', 'comments.user', 'comments.parent.user'])
             ->findOrFail($task->id);
 
         return view('ProjectManagement::tasks.show', compact('project', 'task'));

@@ -31,13 +31,7 @@
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/",
             "Modules\\Core\\": "Modules/Core/src/",
-            "Modules\\ProjectManagement\\": "Modules/ProjectManagement/src/",
-            "Modules\\Views\\": "Modules/Views/src/",
-            "Modules\\Tasks.myTasks\\": "Modules/Tasks.myTasks/src/",
-            "Modules\\Controller\\": "Modules/Controller/src/",
-            "Modules\\RoleController\\": "Modules/RoleController/src/",
-              "Modules\\": "Modules/"
-            
+            "Modules\\ProjectManagement\\": "Modules/ProjectManagement/src/"
         }
     },
     "autoload-dev": {
