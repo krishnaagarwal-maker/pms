@@ -426,7 +426,7 @@
                         <a href="{{ route('projects.create') }}" class="{{ $btnPrimary }}">
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
                             New project
-                        </a>2
+                        </a>
                     @endcan
                 </div>
             </div>
