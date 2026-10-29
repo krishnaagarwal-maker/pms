@@ -28,6 +28,9 @@
     }
     $resolvedPct = $total > 0 ? (int) round(($completed / $total) * 100) : 0;
     $chartLabel  = collect($segments)->map(fn ($s) => $s[0] . ': ' . $s[1])->implode(', ');
+    $statusPercentages = collect($segments)
+        ->map(fn ($s) => $total > 0 ? (int) round(($s[1] / $total) * 100) : 0)
+        ->values();
 
     // ---- Helpers ---------------------------------------------------------
     $ticket = fn ($t) => 'TSK-' . $t->project_id . '-' . str_pad($t->id, 2, '0', STR_PAD_LEFT);
@@ -75,7 +78,7 @@
     ];
     $chip  = 'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium';
     $focus = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-800 focus-visible:ring-offset-2';
-    $card  = 'rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_0_rgba(24,24,27,0.05)]';
+    $card  = 'dash-card rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_0_rgba(24,24,27,0.05)]';
     $btnSecondary = 'inline-flex h-10 items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3.5 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 motion-reduce:transition-none ' . $focus;
     $btnPrimary   = 'inline-flex h-10 items-center gap-2 rounded-lg bg-zinc-800 px-4 text-sm font-semibold text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)] transition hover:bg-zinc-700 motion-reduce:transition-none ' . $focus;
     $link         = 'inline-flex items-center gap-1 rounded text-sm font-medium text-zinc-700 underline-offset-4 hover:text-zinc-900 hover:underline ' . $focus;
@@ -99,7 +102,17 @@
     $attentionApproaching = $attention->count() - $attentionOverdue;
 
     $next   = $byUrgency($openTasks)->take(3);
-    $recent = isset($recentTasks) ? collect($recentTasks)->take(4) : $upcoming->sortByDesc('updated_at')->take(4);
+    $recentActivity = isset($recentTasks) ? collect($recentTasks) : $upcoming->sortByDesc('updated_at');
+    $recent = $recentActivity->take(4);
+    $recentActivityGroups = $recentActivity->groupBy(function ($task) use ($today) {
+        $updated = $task->updated_at instanceof \Illuminate\Support\Carbon
+            ? $task->updated_at
+            : \Illuminate\Support\Carbon::parse($task->updated_at);
+
+        if ($updated->isSameDay($today)) return 'Today';
+        if ($updated->isSameDay($today->copy()->subDay())) return 'Yesterday';
+        return $updated->format('l, M d, Y');
+    });
 
     // ---- Focus task: most urgent thing to start with ---------------------
     $focusTask   = $attention->first() ?? $next->first();
@@ -189,11 +202,11 @@
         @keyframes dash-enter {
             0% {
                 opacity: 0;
-                transform: translateY(12px) scale(0.985);
+                transform: translateY(18px) scale(0.985);
             }
-            60% {
+            65% {
                 opacity: 1;
-                transform: translateY(-2px) scale(1.004);
+                transform: translateY(-1px) scale(1.002);
             }
             100% {
                 opacity: 1;
@@ -218,14 +231,25 @@
             to { transform: scaleX(1); }
         }
 
-        @keyframes dash-donut-draw {
-            from { stroke-dasharray: 0 100; }
-            to { stroke-dasharray: var(--dash-segment) var(--dash-gap); }
+        @keyframes dash-progress-sweep {
+            from { clip-path: inset(0 100% 0 0); }
+            to { clip-path: inset(0 0 0 0); }
+        }
+
+        @keyframes dash-donut-sweep {
+            from { stroke-dashoffset: 100; }
+            to { stroke-dashoffset: 0; }
         }
 
         @keyframes dash-status-reveal {
             from { opacity: 0; transform: translateX(-8px); }
             to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes dash-icon-settle {
+            0% { opacity: 0; transform: scale(.72) rotate(-10deg); }
+            70% { opacity: 1; transform: scale(1.08) rotate(2deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0); }
         }
 
         .task-attention-card {
@@ -236,7 +260,8 @@
         }
 
         .dash-animate-card {
-            animation: dash-enter .7s cubic-bezier(.2,.8,.2,1) both;
+            will-change: transform, opacity;
+            animation: dash-enter .72s cubic-bezier(.22,.8,.25,1) both;
         }
 
         .dash-animate-card.delay-1 { animation-delay: .06s; }
@@ -252,13 +277,83 @@
             animation: dash-progress-fill .7s cubic-bezier(.22,.8,.25,1) both;
         }
 
+        .dash-progress-reveal {
+            animation: dash-progress-sweep 2.4s cubic-bezier(.35, 0, .2, 1) .18s both;
+        }
+
         .dash-donut-segment {
-            animation: dash-donut-draw .85s cubic-bezier(.22,.8,.25,1) both;
+            cursor: pointer;
+            transition: opacity .18s ease, stroke-width .18s ease, filter .18s ease;
+        }
+
+        .dash-donut-reveal {
+            stroke-linecap: butt;
+            animation: dash-donut-sweep 2.4s cubic-bezier(.35, 0, .2, 1) .18s both;
+        }
+
+        .dash-donut-wrap {
+            transition: transform .65s cubic-bezier(.16, 1, .3, 1), filter .65s cubic-bezier(.16, 1, .3, 1);
+        }
+
+        @media (hover: hover) {
+            .dash-donut-wrap:hover {
+                transform: translateY(-4px) scale(1.045);
+                filter: drop-shadow(0 14px 12px rgba(24, 24, 27, .14));
+            }
+        }
+
+        .dash-donut-segment.dash-status-is-dim { opacity: .22; }
+        .dash-donut-segment.dash-status-is-active {
+            stroke-width: 5.25;
+            filter: drop-shadow(0 2px 3px rgba(24, 24, 27, .18));
         }
 
         .dash-status-center,
         .dash-status-row {
             animation: dash-status-reveal .45s cubic-bezier(.22,.8,.25,1) both;
+        }
+
+        .dash-status-row {
+            cursor: pointer;
+            transition: opacity .18s ease, background-color .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+
+        .dash-status-row.dash-status-is-dim { opacity: .42; }
+        .dash-status-row.dash-status-is-active {
+            background: rgb(250 250 250);
+            box-shadow: inset 0 0 0 1px rgb(228 228 231);
+            transform: translateX(2px);
+        }
+
+        .dash-card {
+            transition: transform .24s cubic-bezier(.22,.8,.25,1), box-shadow .24s ease, border-color .24s ease;
+        }
+
+        @media (hover: hover) {
+            .dash-card:hover {
+                transform: translateY(-2px);
+                border-color: rgb(212 212 216);
+                box-shadow: 0 12px 26px -18px rgba(24, 24, 27, .32), 0 1px 3px rgba(24, 24, 27, .06);
+            }
+
+            .dash-kpi-card:hover .dash-kpi-icon {
+                transform: scale(1.08) rotate(-4deg);
+            }
+
+            .dash-list-item:hover {
+                transform: translateX(3px);
+                background-color: rgb(250 250 250);
+            }
+        }
+
+        .dash-kpi-card,
+        .dash-list-item {
+            transition: transform .2s cubic-bezier(.22,.8,.25,1), background-color .2s ease, box-shadow .2s ease;
+        }
+
+        .dash-kpi-icon {
+            transition: transform .25s cubic-bezier(.22,.8,.25,1);
+            animation: dash-icon-settle .48s cubic-bezier(.22,.8,.25,1) both;
         }
 
         .dash-motion a,
@@ -273,12 +368,34 @@
             text-decoration: none !important;
         }
 
+        /* Kept as explicit CSS so the modal blur is present even when a
+           production Tailwind build does not include backdrop utilities. */
+        .recent-activity-backdrop {
+            /* Navigation is sticky at z-50; this must sit above it as a true
+               application modal, not only above the dashboard content. */
+            z-index: 100 !important;
+            /* A light frosted layer retains the dashboard's natural colours
+               while gently separating it from the focused activity view. */
+            background: rgba(255, 255, 255, 0.28);
+            -webkit-backdrop-filter: blur(4px) saturate(0.96);
+            backdrop-filter: blur(4px) saturate(0.96);
+        }
+
+        /* The navigation already has a frosted backdrop. When the activity
+           overlay is open, let the modal provide the only blur so the nav
+           does not become a muddy double-blurred strip. */
+        body.recent-activity-modal-open .nav-motion {
+            -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
+            background: rgba(255, 255, 255, 0.72) !important;
+        }
+
         @media (prefers-reduced-motion: reduce) {
             .dash-motion * { transition: none !important; animation: none !important; }
         }
     </style>
 
-    <div class="dash-motion min-h-screen bg-white py-space-xl font-inter text-zinc-900">
+    <div class="dash-motion min-h-screen bg-white py-space-xl font-inter text-zinc-900" x-data="{ recentActivityOpen: false }" x-effect="document.body.classList.toggle('recent-activity-modal-open', recentActivityOpen)" @keydown.escape.window="recentActivityOpen = false">
         <div class="mx-auto max-w-[1600px] space-y-6 px-4 sm:px-6 lg:px-8">
 
             {{-- Greeting --}}
@@ -372,14 +489,16 @@
                             <span class="font-medium text-zinc-700">Overall progress</span>
                             <span class="tabular-nums">{{ $completed }} of {{ $total }} {{ Str::plural('task', $total) }} done ({{ $resolvedPct }}%)</span>
                         </div>
-                        <div class="flex h-2 w-full overflow-hidden rounded-full bg-zinc-200" role="img" aria-label="{{ $chartLabel }}">
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-200" role="img" aria-label="{{ $chartLabel }}">
+                            <div class="dash-progress-reveal flex h-full w-full">
                             @foreach ($segments as [$sLabel, $sCount, $sStroke, $sBg])
                                 @if ($total > 0 && $sCount > 0)
-                                    <div class="dash-progress-segment h-full {{ $sBg }}"
-                                         style="width: {{ round(($sCount / $total) * 100, 2) }}%; animation-delay: {{ 180 + ($loop->index * 110) }}ms"
+                                    <div class="h-full {{ $sBg }}"
+                                         style="width: {{ round(($sCount / $total) * 100, 2) }}%"
                                          title="{{ $sLabel }}: {{ $sCount }}"></div>
                                 @endif
                             @endforeach
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -422,10 +541,10 @@
                     @can($permission)
                         @php $alert = $label === 'Overdue' && $count > 0; @endphp
                         <a href="{{ route($routeName, $statusFilter ? ['status' => $statusFilter] : []) }}"
-                           class="dash-animate-card delay-{{ min($loop->iteration, 5) }} group rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgba(24,24,27,0.05)] transition hover:shadow-md {{ $focus }} {{ $alert ? 'border-red-200 hover:border-red-300' : 'border-zinc-200 hover:border-zinc-400' }}">
+                           class="dash-kpi-card dash-animate-card delay-{{ min($loop->iteration, 5) }} group rounded-lg border bg-white p-4 shadow-[0_1px_2px_0_rgba(24,24,27,0.05)] transition hover:shadow-md {{ $focus }} {{ $alert ? 'border-red-200 hover:border-red-300' : 'border-zinc-200 hover:border-zinc-400' }}">
                             <div class="flex items-start justify-between">
                                 <p class="text-[13px] font-medium text-zinc-600">{{ $label }}</p>
-                                <span class="flex h-8 w-8 items-center justify-center rounded-md {{ $iconBox }}">
+                                <span class="dash-kpi-icon flex h-8 w-8 items-center justify-center rounded-md {{ $iconBox }}" style="animation-delay: {{ 120 + ($loop->index * 70) }}ms">
                                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $icon }}</span>
                                 </span>
                             </div>
@@ -440,7 +559,7 @@
             <div class="grid grid-cols-1 gap-6 {{ $priority ? 'lg:grid-cols-2' : '' }}">
 
                 {{-- Task status distribution --}}
-                <section class="{{ $card }} dash-animate-card delay-4 p-6" aria-labelledby="dist-heading">
+                <section class="{{ $card }} dash-animate-card delay-4 p-6" x-data="{ statusHover: null, statusValues: {{ \Illuminate\Support\Js::from($statusPercentages) }}, statusLabels: {{ \Illuminate\Support\Js::from(collect($segments)->pluck(0)->values()) }} }" aria-labelledby="dist-heading">
                     <div class="mb-5 flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-[20px] text-zinc-700" aria-hidden="true">donut_large</span>
@@ -450,33 +569,40 @@
                     </div>
 
                     <div class="flex flex-col items-center gap-8 sm:flex-row">
-                        <div class="relative h-40 w-40 shrink-0">
+                        <div class="dash-donut-wrap relative h-40 w-40 shrink-0">
                             <svg viewBox="0 0 36 36" class="h-40 w-40 -rotate-90" role="img" aria-label="{{ $chartLabel }}">
                                 <circle cx="18" cy="18" r="15.9155" fill="none" class="stroke-zinc-100" stroke-width="4"></circle>
-                                @php $acc = 0; @endphp
-                                @foreach ($segments as [$sLabel, $sCount, $stroke])
-                                    @php $pct = $total > 0 ? ($sCount / $total) * 100 : 0; @endphp
-                                    @if ($pct > 0)
-                                        <circle cx="18" cy="18" r="15.9155" fill="none" class="dash-donut-segment {{ $stroke }} transition-opacity hover:opacity-75" stroke-width="4"
-                                                stroke-dasharray="{{ round($pct, 2) }} {{ round(100 - $pct, 2) }}"
-                                                stroke-dashoffset="{{ round(-$acc, 2) }}"
-                                                style="--dash-segment: {{ round($pct, 2) }}; --dash-gap: {{ round(100 - $pct, 2) }}; animation-delay: {{ 180 + ($loop->index * 130) }}ms">
-                                            <title>{{ $sLabel }}: {{ $sCount }} ({{ number_format($pct, 1) }}%)</title>
-                                        </circle>
-                                        @php $acc += $pct; @endphp
-                                    @endif
-                                @endforeach
+                                <defs>
+                                    <mask id="task-status-donut-reveal">
+                                        <rect width="36" height="36" fill="black"></rect>
+                                        <circle class="dash-donut-reveal" cx="18" cy="18" r="15.9155" fill="none" stroke="white" stroke-width="4.4" stroke-dasharray="100" stroke-dashoffset="100"></circle>
+                                    </mask>
+                                </defs>
+                                <g mask="url(#task-status-donut-reveal)">
+                                    @php $acc = 0; @endphp
+                                    @foreach ($segments as [$sLabel, $sCount, $stroke])
+                                        @php $pct = $total > 0 ? ($sCount / $total) * 100 : 0; @endphp
+                                        @if ($pct > 0)
+                                            <circle cx="18" cy="18" r="15.9155" fill="none" class="dash-donut-segment {{ $stroke }}" x-on:mouseenter="statusHover = {{ $loop->index }}" x-on:mouseleave="statusHover = null" x-bind:class="{ 'dash-status-is-active': statusHover === {{ $loop->index }}, 'dash-status-is-dim': statusHover !== null && statusHover !== {{ $loop->index }} }" stroke-width="4"
+                                                    stroke-dasharray="{{ round($pct, 2) }} {{ round(100 - $pct, 2) }}"
+                                                    stroke-dashoffset="{{ round(-$acc, 2) }}">
+                                                <title>{{ $sLabel }}: {{ $sCount }} ({{ number_format($pct, 1) }}%)</title>
+                                            </circle>
+                                            @php $acc += $pct; @endphp
+                                        @endif
+                                    @endforeach
+                                </g>
                             </svg>
-                            <div class="dash-status-center pointer-events-none absolute inset-0 flex flex-col items-center justify-center" style="animation-delay: 650ms">
-                                <span class="text-3xl font-bold tabular-nums text-zinc-900">{{ $resolvedPct }}%</span>
-                                <span class="text-xs font-medium text-zinc-500">Resolved</span>
+                            <div class="dash-status-center pointer-events-none absolute inset-0 flex flex-col items-center justify-center" style="animation-delay: 650ms" aria-live="polite">
+                                <span class="text-3xl font-bold tabular-nums text-zinc-900" x-text="(statusHover === null ? {{ $resolvedPct }} : statusValues[statusHover]) + '%'">{{ $resolvedPct }}%</span>
+                                <span class="mt-0.5 max-w-28 truncate text-xs font-medium text-zinc-500" x-text="statusHover === null ? 'Resolved' : statusLabels[statusHover]">Resolved</span>
                             </div>
                         </div>
 
                         <ul class="w-full flex-1 space-y-2.5">
                             @foreach ($segments as [$sLabel, $sCount, $stroke, $dot])
                                 @php $isOverdueRow = str_starts_with($sLabel, 'Overdue') && $sCount > 0; @endphp
-                                <li class="dash-status-row flex items-center justify-between gap-3 rounded-md px-2 py-1.5 {{ $isOverdueRow ? 'bg-red-50' : '' }}" style="animation-delay: {{ 260 + ($loop->index * 90) }}ms">
+                                <li class="dash-status-row flex items-center justify-between gap-3 rounded-md px-2 py-1.5 outline-none {{ $isOverdueRow ? 'bg-red-50' : '' }}" tabindex="0" x-on:mouseenter="statusHover = {{ $loop->index }}" x-on:mouseleave="statusHover = null" x-on:focus="statusHover = {{ $loop->index }}" x-on:blur="statusHover = null" x-bind:class="{ 'dash-status-is-active': statusHover === {{ $loop->index }}, 'dash-status-is-dim': statusHover !== null && statusHover !== {{ $loop->index }} }" style="animation-delay: {{ 260 + ($loop->index * 90) }}ms">
                                     <span class="flex min-w-0 items-center gap-2 text-sm {{ $isOverdueRow ? 'font-medium text-red-700' : 'text-zinc-700' }}">
                                         <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $dot }}"></span>
                                         <span class="truncate">{{ $sLabel }}</span>
@@ -665,7 +791,7 @@
                     <div class="space-y-3">
                         @forelse ($next as $task)
                             @php [$uState, $uLabel] = $urgency($task); @endphp
-                            <div class="flex items-center gap-4 rounded-lg px-4 py-3 {{ $uState === 'overdue' ? 'bg-red-50' : 'bg-zinc-50' }}">
+                            <div class="dash-list-item flex items-center gap-4 rounded-lg px-4 py-3 {{ $uState === 'overdue' ? 'bg-red-50' : 'bg-zinc-50' }}">
                                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sm font-bold {{ $loop->first ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-600 ring-1 ring-zinc-200' }}">{{ $loop->iteration }}</span>
 
                                 <div class="min-w-0 flex-1">
@@ -702,15 +828,19 @@
                     </div>
                 </section>
 
-                {{-- Recently updated --}}
+                {{-- Recent activity --}}
                 <section class="{{ $card }} p-6" aria-labelledby="recent-heading">
                     <div class="mb-4 flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-[22px] text-zinc-700" aria-hidden="true">history</span>
-                            <h2 id="recent-heading" class="text-base font-semibold tracking-tight text-zinc-900">Recently updated</h2>
+                            <h2 id="recent-heading" class="text-base font-semibold tracking-tight text-zinc-900">Recent activity</h2>
                         </div>
-                        <span class="text-xs font-medium text-zinc-400">Activity feed</span>
+                        <button type="button" @click="recentActivityOpen = true" aria-label="Open full recent activity" class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-900 {{ $focus }}">
+                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">open_in_full</span>
+                        </button>
                     </div>
+
+                    <p class="mb-3 text-sm text-zinc-500">Stay up to date with what’s happening across your work.</p>
 
                     <ul class="divide-y divide-zinc-100">
                         @forelse ($recent as $task)
@@ -727,7 +857,7 @@
                                     default       => 'Updated',
                                 };
                             @endphp
-                            <li class="flex items-start justify-between gap-3 py-3">
+                            <li class="dash-list-item flex items-start justify-between gap-3 rounded-md py-3">
                                 <div class="flex min-w-0 items-start gap-3">
                                     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full {{ $icon[1] }}">
                                         <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $icon[0] }}</span>
@@ -749,6 +879,72 @@
                             <li class="py-10 text-center text-sm text-zinc-500">No recent activity yet.</li>
                         @endforelse
                     </ul>
+                </section>
+            </div>
+
+            {{-- Full recent-activity overlay --}}
+            <div x-cloak x-show="recentActivityOpen" x-transition.opacity class="recent-activity-backdrop fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="recent-activity-dialog-title" @click.self="recentActivityOpen = false">
+                <section x-show="recentActivityOpen" x-transition.scale.origin.center class="flex max-h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl sm:max-h-[calc(100vh-3rem)]" @click.stop>
+                    <header class="flex items-start justify-between gap-5 border-b border-zinc-200 px-5 py-4 sm:px-7 sm:py-5">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[22px] text-zinc-700" aria-hidden="true">history</span>
+                                <h2 id="recent-activity-dialog-title" class="text-lg font-semibold tracking-tight text-zinc-900">Recent activity</h2>
+                            </div>
+                            <p class="mt-1 text-sm text-zinc-500">Stay up to date with what’s happening across your work.</p>
+                        </div>
+                        <button type="button" @click="recentActivityOpen = false" aria-label="Close recent activity" class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 {{ $focus }}">
+                            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+                        </button>
+                    </header>
+
+                    <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-7 sm:py-5">
+                        @forelse ($recentActivityGroups as $dateLabel => $activities)
+                            <section class="{{ $loop->first ? '' : 'mt-7' }}" aria-labelledby="activity-date-{{ $loop->index }}">
+                                <h3 id="activity-date-{{ $loop->index }}" class="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">{{ $dateLabel }}</h3>
+                                <ul class="divide-y divide-zinc-100 rounded-xl border border-zinc-100 bg-white px-4 sm:px-5">
+                                    @foreach ($activities as $task)
+                                        @php
+                                            [$sPill, $sDot, $sText] = $statusChip[$task->status] ?? $statusChip['pending'];
+                                            $icon = match ($task->status) {
+                                                'completed' => ['check', 'bg-emerald-50 text-emerald-600'],
+                                                'in_progress' => ['sync', 'bg-amber-50 text-amber-600'],
+                                                default => ['edit_note', 'bg-zinc-100 text-zinc-500'],
+                                            };
+                                            $verb = match ($task->status) {
+                                                'completed' => 'Marked done',
+                                                'in_progress' => 'Moved to in progress',
+                                                default => 'Updated',
+                                            };
+                                        @endphp
+                                        <li class="dash-list-item flex items-start justify-between gap-3 rounded-md py-3.5">
+                                            <div class="flex min-w-0 items-start gap-3">
+                                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full {{ $icon[1] }}">
+                                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ $icon[0] }}</span>
+                                                </span>
+                                                <div class="min-w-0">
+                                                    <a href="{{ route('projects.tasks.show', [$task->project_id, $task]) }}" class="block rounded text-sm font-medium text-zinc-900 hover:underline hover:underline-offset-4 {{ $focus }}">
+                                                        <span class="font-code-sm text-[11px] text-zinc-500">{{ $ticket($task) }}</span> {{ $task->title }}
+                                                    </a>
+                                                    <p class="mt-0.5 text-xs text-zinc-500">
+                                                        {{ $verb }} {{ $task->updated_at->diffForHumans() }}
+                                                        @if ($task->project?->name) in {{ $task->project->name }} @endif
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <span class="{{ $chip }} shrink-0 {{ $sPill }}">{{ $sText }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </section>
+                        @empty
+                            <div class="py-16 text-center">
+                                <span class="material-symbols-outlined text-[32px] text-zinc-300" aria-hidden="true">history</span>
+                                <p class="mt-3 font-medium text-zinc-700">No recent activity yet</p>
+                                <p class="mt-1 text-sm text-zinc-500">Task updates will appear here.</p>
+                            </div>
+                        @endforelse
+                    </div>
                 </section>
             </div>
 

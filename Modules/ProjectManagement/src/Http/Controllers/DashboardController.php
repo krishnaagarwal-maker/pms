@@ -47,6 +47,14 @@ class DashboardController extends Controller
         ->with('project')
         ->get();
 
+    // The compact card shows a preview; the expanded activity view needs a
+    // fuller history that it can organize by date.
+    $recentTasks = (clone $tasksQuery)
+        ->with('project')
+        ->latest('updated_at')
+        ->limit(100)
+        ->get();
+
     $notifications = $user
         ? $user->notifications()->latest()->limit(6)->get()
         : collect();
@@ -62,6 +70,7 @@ class DashboardController extends Controller
         'pendingTasks',
         'overdueTasks',
         'upcomingTasks',
+        'recentTasks',
         'notifications',
         'unreadNotificationCount'
     ));

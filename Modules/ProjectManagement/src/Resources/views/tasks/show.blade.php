@@ -870,7 +870,7 @@
                             </button>
                         </div>
 
-                        {{-- ================= TAB 1: TIMER ================= --}}
+                        {{-- =============== TAB 1: TIMER ================= --}}
                         <div x-show="tab === 'timer'" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 translate-y-1" x-transition:enter-end="opacity-100 translate-y-0">
                             {{-- Small Cute Action Button: Green Start / Red Stop --}}
                             <div class="mt-space-md flex flex-col items-center justify-center py-1">
@@ -895,7 +895,7 @@
                                             @if ($isDone)
                                                 <span>Task completed</span>
                                             @else
-                                                <span>Deadline passed</span>
+                                                <span>Deadline passed · Timer locked</span>
                                             @endif
                                         </div>
                                     @endif
@@ -917,7 +917,7 @@
                                         <span>Stop </span>
                                     </button>
 
-                                    <p x-show="running" x-cloak class="mt-2 text-[11px] font-medium text-on-surface-variant">
+                                    <p x-show="running" x-cloak class="mt-2 text-[8px] font-medium text-on-surface-variant">
                                          active · Started by <span class="font-semibold text-on-surface" x-text="startedBy"></span>
                                     </p>
                                 @else
@@ -948,8 +948,8 @@
                                 <div class="rounded-xl border border-surface-container-high bg-surface-container-low/70 p-2.5 text-center">
                                     <div class="flex items-center justify-center gap-1 text-on-surface-variant">
                                         <span class="material-symbols-outlined text-[15px]">sentiment_satisfied</span>
-                                        <span class="text-[11px] font-medium uppercase tracking-wider">Idle</span>
-                                        <span class="sr-only">Timesheet Sessions</span>
+                                        <span class="text-[11px] font-medium uppercase tracking-wider" title="Time after 60 seconds without activity while the timer is running">Idle</span>
+                                        <span class="sr-only">Timesheet Sessions · time without activity while the timer is running</span>
                                     </div>
                                     <p class="mt-1 text-label-md sm:text-title-sm font-bold tabular-nums text-on-surface" x-text="idleDisplay">00:00:00</p>
                                 </div>
@@ -1050,7 +1050,7 @@
                                     </div>
                                 </div>
 
-                                {{-- Active Session Notice in History Tab (when running) --}}
+                                {{--Active Session Notice in History Tab (when running) --}}
                                 <div x-show="running && selectedDate !== 'all' && selectedDate !== todayKey" x-cloak
                                      class="mb-space-sm flex items-center justify-between rounded-xl bg-secondary-fixed/40 px-3 py-2 text-body-xs text-on-secondary-fixed">
                                     <div class="flex items-center gap-1.5">
@@ -1349,21 +1349,39 @@
                 entries: [],
                 offset: 0,              // server time minus device time (ms)
                 now: Date.now(),
+                idleThresholdSeconds: 60,
+                idleBaseSeconds: 0,
+                lastActivityAt: null,
+                trackedSessionStartedAt: null,
                 loading: false,
                 error: null,
                 success: null,
                 _tick: null,
+                _activityHandler: null,
 
                 init() {
                     this.apply(cfg.state);
                     this._tick = setInterval(() => { this.now = Date.now() + this.offset; }, 250);
+                    this._activityHandler = () => this.recordActivity();
+                    ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll'].forEach((eventName) => {
+                        window.addEventListener(eventName, this._activityHandler, { passive: true });
+                    });
                 },
-                destroy() { clearInterval(this._tick); },
+                destroy() {
+                    clearInterval(this._tick);
+                    if (this._activityHandler) {
+                        ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll'].forEach((eventName) => {
+                            window.removeEventListener(eventName, this._activityHandler);
+                        });
+                    }
+                },
 
                 apply(state) {
                     if (!state) return;
+                    var nextStartedAt = state.started_at ? Date.parse(state.started_at) : null;
+                    var isNewSession = nextStartedAt !== this.trackedSessionStartedAt;
                     this.running = !!state.running;
-                    this.startedAt = state.started_at ? Date.parse(state.started_at) : null;
+                    this.startedAt = nextStartedAt;
                     this.startedBy = state.started_by || null;
                     this.totalSeconds = state.total_seconds || 0;
                     this.totalFormatted = state.total_formatted || this.fmtDuration(this.totalSeconds);
@@ -1371,6 +1389,14 @@
                     this.entries = state.entries || [];
                     this.offset = state.server_now ? state.server_now - Date.now() : 0;
                     this.now = Date.now() + this.offset;
+                    if (isNewSession) {
+                        this.trackedSessionStartedAt = nextStartedAt;
+                        this.idleBaseSeconds = 0;
+                        this.lastActivityAt = this.now;
+                    }
+                    if (!this.running) {
+                        this.lastActivityAt = null;
+                    }
                 },
 
                 get elapsed() {
@@ -1419,7 +1445,7 @@
                         sum += Number(this.entries[i].duration_seconds || 0);
                     }
                     if (this.running) {
-                        sum += this.elapsed;
+                        sum += Math.max(0, this.elapsed - this.idleSeconds);
                     }
                     return sum;
                 },
@@ -1428,8 +1454,24 @@
                     return this.fmtHMS(this.productiveSeconds);
                 },
 
+                get idleSeconds() {
+                    if (!this.running || !this.lastActivityAt) return 0;
+                    var inactiveSeconds = Math.max(0, Math.floor((this.now - this.lastActivityAt) / 1000));
+                    return this.idleBaseSeconds + Math.max(0, inactiveSeconds - this.idleThresholdSeconds);
+                },
+
                 get idleDisplay() {
-                    return '00:00:00';
+                    return this.fmtHMS(this.idleSeconds);
+                },
+
+                recordActivity() {
+                    if (!this.running) return;
+                    var activityAt = Date.now() + this.offset;
+                    if (this.lastActivityAt) {
+                        var inactiveSeconds = Math.max(0, Math.floor((activityAt - this.lastActivityAt) / 1000));
+                        this.idleBaseSeconds += Math.max(0, inactiveSeconds - this.idleThresholdSeconds);
+                    }
+                    this.lastActivityAt = activityAt;
                 },
 
                 // Calendar navigation & grid helpers
