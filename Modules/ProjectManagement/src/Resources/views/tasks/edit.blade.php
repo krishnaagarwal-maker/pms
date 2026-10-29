@@ -104,6 +104,8 @@
              priority: @js(old('priority', $task->priority)),
              status: @js(old('status', $task->status)),
              assignedTo: @js((string) old('assigned_to', $task->assigned_to ?? '')),
+             projectStartDate: @js($project->start_date?->format('Y-m-d')),
+             projectEndDate: @js($project->end_date?->format('Y-m-d')),
              users: @js(($users ?? collect())->mapWithKeys(fn ($u) => [(string) $u->id => ['name' => $u->name, 'email' => $u->email]])),
 
              {{-- Values as stored in the database, used to diff against unsaved edits --}}
@@ -137,6 +139,14 @@
              setDate(days) {
                  const d = new Date();
                  d.setDate(d.getDate() + days);
+                 if (this.projectStartDate && this.iso(d) < this.projectStartDate) {
+                     this.dueDate = this.projectStartDate;
+                     return;
+                 }
+                 if (this.projectEndDate && this.iso(d) > this.projectEndDate) {
+                     this.dueDate = this.projectEndDate;
+                     return;
+                 }
                  this.dueDate = this.iso(d);
              },
              today() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; },
@@ -310,7 +320,7 @@
                                         </span>
                                     @endif
                                 </div>
-                                <input type="date" id="due_date" name="due_date" x-model="dueDate"
+                                <input type="date" id="due_date" name="due_date" x-model="dueDate" @if ($project->start_date) min="{{ $project->start_date->format('Y-m-d') }}" @endif @if ($project->end_date) max="{{ $project->end_date->format('Y-m-d') }}" @endif
                                        class="w-full rounded-xl border-0 bg-surface-container-lowest px-space-md py-2.5 text-body-md text-on-surface focus:outline-none focus:ring-0
                                               {{ $errors->has('due_date') ? 'shadow-[0_0_0_2px_rgba(186,26,26,1)]' : 'shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]' }}">
 

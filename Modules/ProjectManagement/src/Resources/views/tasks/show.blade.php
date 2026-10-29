@@ -895,7 +895,7 @@
                                             @if ($isDone)
                                                 <span>Task completed</span>
                                             @else
-                                                <span>Deadline passed · Timer locked</span>
+                                                <span>Deadline passed</span>
                                             @endif
                                         </div>
                                     @endif

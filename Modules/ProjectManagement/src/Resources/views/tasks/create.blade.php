@@ -14,6 +14,8 @@
              status: @js(old('status', 'pending')),
              description: @js(old('description', '')),
              assignedTo: @js((string) old('assigned_to', '')),
+             projectStartDate: @js($project->start_date?->format('Y-m-d')),
+             projectEndDate: @js($project->end_date?->format('Y-m-d')),
              users: @js(($users ?? collect())->mapWithKeys(fn ($u) => [(string) $u->id => ['name' => $u->name, 'email' => $u->email]])),
 
              priorityActive: {
@@ -36,6 +38,14 @@
              setDue(offsetDays) {
                  const d = new Date();
                  d.setDate(d.getDate() + offsetDays);
+                 if (this.projectStartDate && this.iso(d) < this.projectStartDate) {
+                     this.due = this.projectStartDate;
+                     return;
+                 }
+                 if (this.projectEndDate && this.iso(d) > this.projectEndDate) {
+                     this.due = this.projectEndDate;
+                     return;
+                 }
                  this.due = this.iso(d);
              },
              today() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; },
@@ -186,7 +196,7 @@
                                         </span>
                                     @endif
                                 </div>
-                                <input type="date" id="due_date" name="due_date" x-model="due"
+                                <input type="date" id="due_date" name="due_date" x-model="due" @if ($project->start_date) min="{{ $project->start_date->format('Y-m-d') }}" @endif @if ($project->end_date) max="{{ $project->end_date->format('Y-m-d') }}" @endif
                                        class="w-full rounded-xl border-0 bg-surface-container-lowest px-space-md py-2.5 text-body-md text-on-surface focus:outline-none focus:ring-0
                                               {{ $errors->has('due_date') ? 'shadow-[0_0_0_2px_rgba(186,26,26,1)]' : 'shadow-[0_0_0_1px_rgba(203,213,225,1)] focus:shadow-[0_0_0_2px_rgba(79,70,229,1)]' }}">
 
