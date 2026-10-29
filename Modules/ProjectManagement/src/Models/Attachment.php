@@ -28,73 +28,47 @@ class Attachment extends Model
         'file_size' => 'integer',
     ];
 
-    /**
-     * Get the owning attachable model (Project or Task).
-     */
     public function attachable(): MorphTo
     {
         return $this->morphTo();
     }
 
-    /**
-     * The user who uploaded the attachment.
-     */
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 
-    /**
-     * Human-readable file size (e.g., 2.4 MB, 320 KB).
-     */
     public function getHumanSizeAttribute(): string
     {
         $bytes = (int) $this->file_size;
 
-        if ($bytes >= 1073741824) {
-            return number_format($bytes / 1073741824, 1) . ' GB';
-        }
-        if ($bytes >= 1048576) {
-            return number_format($bytes / 1048576, 1) . ' MB';
-        }
-        if ($bytes >= 1024) {
-            return number_format($bytes / 1024, 1) . ' KB';
-        }
-
-        return $bytes . ' B';
+        return match (true) {
+            $bytes >= 1073741824 => number_format($bytes / 1073741824, 1) . ' GB',
+            $bytes >= 1048576    => number_format($bytes / 1048576, 1) . ' MB',
+            $bytes >= 1024       => number_format($bytes / 1024, 1) . ' KB',
+            default              => $bytes . ' B',
+        };
     }
 
-    /**
-     * Normalized file extension.
-     */
     public function getExtensionAttribute(): string
     {
         return strtolower(pathinfo($this->file_name, PATHINFO_EXTENSION));
     }
 
-    /**
-     * Determine if the file is an image.
-     */
     public function getIsImageAttribute(): bool
     {
         if ($this->mime_type && str_starts_with($this->mime_type, 'image/')) {
             return true;
         }
 
-        return in_array($this->extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'avif']);
+        return in_array($this->extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'avif'], true);
     }
 
-    /**
-     * Determine if the file is a PDF.
-     */
     public function getIsPdfAttribute(): bool
     {
         return $this->mime_type === 'application/pdf' || $this->extension === 'pdf';
     }
 
-    /**
-     * Material symbol icon name for the file type.
-     */
     public function getIconAttribute(): string
     {
         if ($this->is_image) {
@@ -103,89 +77,66 @@ class Attachment extends Model
         if ($this->is_pdf) {
             return 'picture_as_pdf';
         }
-        if (in_array($this->extension, ['doc', 'docx', 'rtf', 'txt', 'md', 'odt'])) {
-            return 'description';
-        }
-        if (in_array($this->extension, ['xls', 'xlsx', 'csv', 'ods'])) {
-            return 'table_chart';
-        }
-        if (in_array($this->extension, ['ppt', 'pptx', 'odp'])) {
-            return 'slideshow';
-        }
-        if (in_array($this->extension, ['zip', 'rar', '7z', 'tar', 'gz', 'bz2'])) {
-            return 'folder_zip';
-        }
-        if (in_array($this->extension, ['mp4', 'mkv', 'avi', 'mov', 'webm'])) {
-            return 'movie';
-        }
-        if (in_array($this->extension, ['mp3', 'wav', 'ogg', 'm4a', 'flac'])) {
-            return 'audio_file';
-        }
-        if (in_array($this->extension, ['json', 'xml', 'yaml', 'yml', 'js', 'ts', 'php', 'html', 'css', 'py', 'sql', 'sh'])) {
-            return 'code';
-        }
 
-        return 'attach_file';
+        return match (true) {
+            in_array($this->extension, ['doc', 'docx', 'rtf', 'txt', 'md', 'odt'], true) => 'description',
+            in_array($this->extension, ['xls', 'xlsx', 'csv', 'ods'], true) => 'table_chart',
+            in_array($this->extension, ['ppt', 'pptx', 'odp'], true) => 'slideshow',
+            in_array($this->extension, ['zip', 'rar', '7z', 'tar', 'gz', 'bz2'], true) => 'folder_zip',
+            in_array($this->extension, ['mp4', 'mkv', 'avi', 'mov', 'webm'], true) => 'movie',
+            in_array($this->extension, ['mp3', 'wav', 'ogg', 'm4a', 'flac'], true) => 'audio_file',
+            in_array($this->extension, ['json', 'xml', 'yaml', 'yml', 'js', 'ts', 'php', 'html', 'css', 'py', 'sql', 'sh'], true) => 'code',
+            default => 'attach_file',
+        };
     }
 
-    /**
-     * Color scheme for the file badge and icon based on file category.
-     */
     public function getColorClassesAttribute(): array
     {
         if ($this->is_image) {
             return [
-                'bg' => 'bg-emerald-500/10 dark:bg-emerald-500/20',
-                'text' => 'text-emerald-600 dark:text-emerald-400',
+                'bg'     => 'bg-emerald-500/10 dark:bg-emerald-500/20',
+                'text'   => 'text-emerald-600 dark:text-emerald-400',
                 'border' => 'border-emerald-200 dark:border-emerald-800/40',
             ];
         }
+
         if ($this->is_pdf) {
             return [
-                'bg' => 'bg-rose-500/10 dark:bg-rose-500/20',
-                'text' => 'text-rose-600 dark:text-rose-400',
+                'bg'     => 'bg-rose-500/10 dark:bg-rose-500/20',
+                'text'   => 'text-rose-600 dark:text-rose-400',
                 'border' => 'border-rose-200 dark:border-rose-800/40',
             ];
         }
-        if (in_array($this->extension, ['xls', 'xlsx', 'csv', 'ods'])) {
-            return [
-                'bg' => 'bg-teal-500/10 dark:bg-teal-500/20',
-                'text' => 'text-teal-600 dark:text-teal-400',
-                'border' => 'border-teal-200 dark:border-teal-800/40',
-            ];
-        }
-        if (in_array($this->extension, ['doc', 'docx', 'rtf', 'txt', 'md', 'odt'])) {
-            return [
-                'bg' => 'bg-blue-500/10 dark:bg-blue-500/20',
-                'text' => 'text-blue-600 dark:text-blue-400',
-                'border' => 'border-blue-200 dark:border-blue-800/40',
-            ];
-        }
-        if (in_array($this->extension, ['zip', 'rar', '7z', 'tar', 'gz', 'bz2'])) {
-            return [
-                'bg' => 'bg-purple-500/10 dark:bg-purple-500/20',
-                'text' => 'text-purple-600 dark:text-purple-400',
-                'border' => 'border-purple-200 dark:border-purple-800/40',
-            ];
-        }
-        if (in_array($this->extension, ['json', 'xml', 'yaml', 'yml', 'js', 'ts', 'php', 'html', 'css', 'py', 'sql', 'sh'])) {
-            return [
-                'bg' => 'bg-indigo-500/10 dark:bg-indigo-500/20',
-                'text' => 'text-indigo-600 dark:text-indigo-400',
-                'border' => 'border-indigo-200 dark:border-indigo-800/40',
-            ];
-        }
 
-        return [
-            'bg' => 'bg-surface-container-high dark:bg-neutral-800',
-            'text' => 'text-on-surface-variant dark:text-neutral-300',
-            'border' => 'border-outline-variant/30 dark:border-neutral-700',
-        ];
+        return match (true) {
+            in_array($this->extension, ['xls', 'xlsx', 'csv', 'ods'], true) => [
+                'bg'     => 'bg-teal-500/10 dark:bg-teal-500/20',
+                'text'   => 'text-teal-600 dark:text-teal-400',
+                'border' => 'border-teal-200 dark:border-teal-800/40',
+            ],
+            in_array($this->extension, ['doc', 'docx', 'rtf', 'txt', 'md', 'odt'], true) => [
+                'bg'     => 'bg-blue-500/10 dark:bg-blue-500/20',
+                'text'   => 'text-blue-600 dark:text-blue-400',
+                'border' => 'border-blue-200 dark:border-blue-800/40',
+            ],
+            in_array($this->extension, ['zip', 'rar', '7z', 'tar', 'gz', 'bz2'], true) => [
+                'bg'     => 'bg-purple-500/10 dark:bg-purple-500/20',
+                'text'   => 'text-purple-600 dark:text-purple-400',
+                'border' => 'border-purple-200 dark:border-purple-800/40',
+            ],
+            in_array($this->extension, ['json', 'xml', 'yaml', 'yml', 'js', 'ts', 'php', 'html', 'css', 'py', 'sql', 'sh'], true) => [
+                'bg'     => 'bg-indigo-500/10 dark:bg-indigo-500/20',
+                'text'   => 'text-indigo-600 dark:text-indigo-400',
+                'border' => 'border-indigo-200 dark:border-indigo-800/40',
+            ],
+            default => [
+                'bg'     => 'bg-surface-container-high dark:bg-neutral-800',
+                'text'   => 'text-on-surface-variant dark:text-neutral-300',
+                'border' => 'border-outline-variant/30 dark:border-neutral-700',
+            ],
+        };
     }
 
-    /**
-     * Delete underlying physical file from disk.
-     */
     public function deletePhysicalFile(): bool
     {
         $diskName = $this->disk ?: 'public';
@@ -196,13 +147,8 @@ class Attachment extends Model
         return false;
     }
 
-    /**
-     * Boot model events.
-     */
     protected static function booted()
     {
-        static::deleting(function (Attachment $attachment) {
-            $attachment->deletePhysicalFile();
-        });
+        static::deleting(fn (Attachment $attachment) => $attachment->deletePhysicalFile());
     }
 }

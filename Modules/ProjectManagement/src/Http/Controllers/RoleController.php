@@ -3,11 +3,13 @@
 namespace Modules\ProjectManagement\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Spatie\Permission\Models\Permission;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -46,7 +48,14 @@ class RoleController extends Controller
         ];
     }
 
-    public function index()
+    private function assignablePermissions(?User $user): array
+    {
+        return $user
+            ? $user->getAllPermissions()->where('guard_name', 'web')->pluck('name')->all()
+            : [];
+    }
+
+    public function index(): View
     {
         $roles = Role::with('permissions')
             ->withCount('users')
@@ -54,51 +63,27 @@ class RoleController extends Controller
             ->paginate(10);
 
         $permissionGroups = $this->permissionGroups();
-        $assignablePermissions = request()->user()
-            ? request()->user()
-                ->getAllPermissions()
-                ->where('guard_name', 'web')
-                ->pluck('name')
-                ->all()
-            : [];
+        $assignablePermissions = $this->assignablePermissions(request()->user());
 
         return view('ProjectManagement::roles.index', compact('roles', 'permissionGroups', 'assignablePermissions'));
     }
 
-    public function create()
+    public function create(): View
     {
         $permissionGroups = $this->permissionGroups();
-        $assignablePermissions = request()->user()
-        ->getAllPermissions()
-        ->where('guard_name', 'web')
-        ->pluck('name')
-        ->all();
+        $assignablePermissions = $this->assignablePermissions(request()->user());
 
-        return view(
-            'ProjectManagement::roles.create', compact('permissionGroups','assignablePermissions'));
+        return view('ProjectManagement::roles.create', compact('permissionGroups', 'assignablePermissions'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        abort_unless(
-            $request->user()->can('roles.create'),
-            403,
-            'You are not allowed to create roles.'
-        );
+        abort_unless($request->user()->can('roles.create'), 403, 'You are not allowed to create roles.');
 
         if ($request->exists('permissions')) {
-            abort_unless(
-                $request->user()->can('roles.assign-permissions'),
-                403,
-                'You are not allowed to assign permissions.'
-            );
+            abort_unless($request->user()->can('roles.assign-permissions'), 403, 'You are not allowed to assign permissions.');
         }
 
-        $assignablePermissions = $request->user()
-        ->getAllPermissions()
-        ->where('guard_name', 'web')
-        ->pluck('name')
-        ->all();
         $validated = $request->validate([
             'name' => [
                 'required',
@@ -112,7 +97,7 @@ class RoleController extends Controller
                 'required',
                 'string',
                 'distinct',
-                Rule::in($assignablePermissions),
+                Rule::in($this->assignablePermissions($request->user())),
             ],
         ]);
 
@@ -122,60 +107,40 @@ class RoleController extends Controller
         ]);
 
         $role->syncPermissions($validated['permissions'] ?? []);
-
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        return redirect()
-            ->route('projects.roles.index')
-            ->with('success', 'Role created successfully.');
+        return redirect()->route('projects.roles.index')->with('success', 'Role created successfully.');
     }
 
-    public function edit(Role $role)
+    public function edit(Role $role): View
     {
         $permissionGroups = $this->permissionGroups();
         $selectedPermissions = $role->permissions->pluck('name')->all();
-        $assignablePermissions = request()->user()
-        ->getAllPermissions()
-        ->where('guard_name', 'web')
-        ->pluck('name')
-        ->all();
+        $assignablePermissions = $this->assignablePermissions(request()->user());
 
-        return view(
-            'ProjectManagement::roles.edit',
-            compact('role', 'permissionGroups', 'selectedPermissions','assignablePermissions')
-        );
+        return view('ProjectManagement::roles.edit', compact('role', 'permissionGroups', 'selectedPermissions', 'assignablePermissions'));
     }
 
-    public function update(Request $request, Role $role)
+    public function update(Request $request, Role $role): RedirectResponse
     {
         if ($request->exists('permissions')) {
-            abort_unless(
-                $request->user()->can('roles.assign-permissions'),
-                403,
-                'You are not allowed to assign permissions.'
-            );
+            abort_unless($request->user()->can('roles.assign-permissions'), 403, 'You are not allowed to assign permissions.');
         }
-        $assignablePermissions = $request->user()
-        ->getAllPermissions()
-        ->where('guard_name', 'web')
-        ->pluck('name')
-        ->all();
+
         $validated = $request->validate([
             'name' => [
                 'required',
                 'string',
                 'max:100',
                 'regex:/^[A-Za-z0-9 _-]+$/',
-                Rule::unique('roles', 'name')
-                    ->where('guard_name', 'web')
-                    ->ignore($role->id),
+                Rule::unique('roles', 'name')->where('guard_name', 'web')->ignore($role->id),
             ],
             'permissions' => ['sometimes', 'array'],
             'permissions.*' => [
                 'required',
                 'string',
                 'distinct',
-                Rule::in($assignablePermissions),
+                Rule::in($this->assignablePermissions($request->user())),
             ],
         ]);
 
@@ -186,18 +151,12 @@ class RoleController extends Controller
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        return redirect()
-            ->route('projects.roles.index')
-            ->with('success', 'Role updated successfully.');
+        return redirect()->route('projects.roles.index')->with('success', 'Role updated successfully.');
     }
 
-    public function destroy(Role $role)
+    public function destroy(Role $role): RedirectResponse
     {
-        abort_if(
-            $this->isBuiltIn($role),
-            422,
-            'Built-in roles cannot be deleted.'
-        );
+        abort_if($this->isBuiltIn($role), 422, 'Built-in roles cannot be deleted.');
 
         $fallbackRole = Role::query()
             ->where('guard_name', $role->guard_name)
@@ -219,11 +178,9 @@ class RoleController extends Controller
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        return redirect()
-            ->route('projects.roles.index')
-            ->with('success', $reassignedUsers
-                ? "Role deleted. {$reassignedUsers} " . Str::plural('user', $reassignedUsers) . ' moved to Team member.'
-                : 'Role deleted successfully.');
+        return redirect()->route('projects.roles.index')->with('success', $reassignedUsers
+            ? "Role deleted. {$reassignedUsers} " . Str::plural('user', $reassignedUsers) . ' moved to Team member.'
+            : 'Role deleted successfully.');
     }
 
     private function isBuiltIn(Role $role): bool

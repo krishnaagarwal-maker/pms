@@ -4,13 +4,15 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Notifications\TaskAssignedNotification;
+use App\Notifications\UserOnboardedNotification;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\View;
-use Modules\ProjectManagement\Models\Project;
 use Modules\ProjectManagement\Database\Seeders\RolePermissionSeeder;
+use Modules\ProjectManagement\Models\Project;
+use Modules\ProjectManagement\Models\TaskComment;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ProjectManagementViewsTest extends TestCase
@@ -102,9 +104,10 @@ class ProjectManagementViewsTest extends TestCase
         $this->assertNotNull($createdUser);
         $this->assertTrue($createdUser->hasRole('team_member'));
 
-        Notification::assertSentTo($createdUser, \App\Notifications\UserOnboardedNotification::class, function ($notification) use ($manager, $createdUser) {
+        Notification::assertSentTo($createdUser, UserOnboardedNotification::class, function ($notification) use ($manager, $createdUser) {
             $mail = $notification->toMail($createdUser);
             $this->assertStringContainsString('Welcome to', $mail->subject);
+
             return $notification->onboardedBy->id === $manager->id;
         });
     }
@@ -191,6 +194,152 @@ class ProjectManagementViewsTest extends TestCase
             'id' => $task->id,
             'status' => 'completed',
         ]);
+    }
+
+    public function test_assigned_user_can_add_a_timestamped_daily_task_update(): void
+    {
+        $assignee = User::factory()->create(['name' => 'Daily Update Author']);
+        $assignee->givePermissionTo(['tasks.view', 'tasks.update-status']);
+
+        $project = Project::create([
+            'name' => 'Daily updates project',
+            'description' => 'Task update check',
+            'start_date' => now()->subDay(),
+            'end_date' => now()->addDays(5),
+        ]);
+
+        $task = $project->tasks()->create([
+            'title' => 'Implement reporting endpoint',
+            'description' => 'Build the endpoint and verify the response.',
+            'due_date' => now()->addDays(2),
+            'priority' => 'medium',
+            'status' => 'in_progress',
+            'assigned_to' => $assignee->id,
+        ]);
+
+        $this->actingAs($assignee)
+            ->post(route('projects.tasks.comments.store', [$project, $task]), [
+                'body' => 'Completed the response mapping and started endpoint tests.',
+            ])
+            ->assertRedirect(route('projects.tasks.show', [$project, $task]))
+            ->assertSessionHas('success', 'Daily work update added successfully.');
+
+        $this->assertDatabaseHas('task_comments', [
+            'task_id' => $task->id,
+            'user_id' => $assignee->id,
+            'body' => 'Completed the response mapping and started endpoint tests.',
+        ]);
+
+        $this->actingAs($assignee)
+            ->get(route('projects.tasks.show', [$project, $task]))
+            ->assertOk()
+            ->assertSeeText('Completed the response mapping and started endpoint tests.')
+            ->assertSeeText('Daily Update Author');
+
+        $comment = TaskComment::where('task_id', $task->id)->firstOrFail();
+
+        $this->actingAs($assignee)
+            ->post(route('projects.tasks.comments.store', [$project, $task]), [
+                'body' => 'Started the integration test coverage.',
+            ])
+            ->assertRedirect(route('projects.tasks.show', [$project, $task]));
+
+        $this->actingAs($assignee)
+            ->put(route('projects.tasks.comments.update', [$project, $task, $comment]), [
+                'body' => 'An older update must not be editable.',
+            ])
+            ->assertForbidden();
+
+        $latestComment = TaskComment::where('task_id', $task->id)
+            ->where('body', 'Started the integration test coverage.')
+            ->firstOrFail();
+
+        $this->actingAs($assignee)
+            ->put(route('projects.tasks.comments.update', [$project, $task, $latestComment]), [
+                'body' => 'Updated the response mapping and completed endpoint tests.',
+            ])
+            ->assertRedirect(route('projects.tasks.show', [$project, $task]))
+            ->assertSessionHas('success', 'Daily work update edited successfully.');
+
+        $this->assertDatabaseHas('task_comments', [
+            'id' => $latestComment->id,
+            'body' => 'Updated the response mapping and completed endpoint tests.',
+        ]);
+
+        $this->actingAs($assignee)
+            ->delete(route('projects.tasks.comments.destroy', [$project, $task, $latestComment]))
+            ->assertRedirect(route('projects.tasks.show', [$project, $task]))
+            ->assertSessionHas('success', 'Daily work update deleted successfully.');
+
+        $this->assertDatabaseMissing('task_comments', ['id' => $latestComment->id]);
+        $this->assertDatabaseHas('task_comments', ['id' => $comment->id]);
+
+        $this->actingAs($assignee)
+            ->get(route('projects.tasks.show', [$project, $task]))
+            ->assertOk()
+            ->assertSeeText('Completed the response mapping and started endpoint tests.')
+            ->assertDontSeeText('Updated the response mapping and completed endpoint tests.');
+    }
+
+    public function test_only_the_assigned_user_can_add_a_daily_task_update(): void
+    {
+        $assignedUser = User::factory()->create();
+        $assignedUser->givePermissionTo('tasks.view');
+
+        $otherUser = User::factory()->create();
+        $otherUser->givePermissionTo(['tasks.view', 'tasks.assign']);
+
+        $project = Project::create([
+            'name' => 'Protected updates project',
+            'description' => 'Task update authorization check',
+            'start_date' => now()->subDay(),
+            'end_date' => now()->addDays(5),
+        ]);
+
+        $task = $project->tasks()->create([
+            'title' => 'Restricted task update',
+            'description' => 'Only the assignee should post here.',
+            'due_date' => now()->addDays(2),
+            'priority' => 'low',
+            'status' => 'pending',
+            'assigned_to' => $assignedUser->id,
+        ]);
+
+        $this->actingAs($otherUser)
+            ->post(route('projects.tasks.comments.store', [$project, $task]), [
+                'body' => 'This update should not be accepted.',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('task_comments', 0);
+
+        $this->actingAs($assignedUser)
+            ->post(route('projects.tasks.comments.store', [$project, $task]), [
+                'body' => 'Completed the first implementation pass.',
+            ])
+            ->assertRedirect(route('projects.tasks.show', [$project, $task]));
+
+        $comment = TaskComment::where('task_id', $task->id)->firstOrFail();
+
+        $this->actingAs($otherUser)
+            ->post(route('projects.tasks.comments.store', [$project, $task]), [
+                'parent_id' => $comment->id,
+                'body' => 'Thanks for the progress update. Please share the test results next.',
+            ])
+            ->assertRedirect(route('projects.tasks.show', [$project, $task]));
+
+        $this->assertDatabaseHas('task_comments', [
+            'task_id' => $task->id,
+            'user_id' => $otherUser->id,
+            'parent_id' => $comment->id,
+            'body' => 'Thanks for the progress update. Please share the test results next.',
+        ]);
+
+        $this->actingAs($otherUser)
+            ->get(route('projects.tasks.show', [$project, $task]))
+            ->assertOk()
+            ->assertSeeText('Reply')
+            ->assertSeeText('Thanks for the progress update. Please share the test results next.');
     }
 
     public function test_project_and_task_detail_pages_show_assignee_names(): void
@@ -305,5 +454,66 @@ class ProjectManagementViewsTest extends TestCase
             ->assertSeeText('Upcoming')
             ->assertSeeText('Ended');
     }
-}
 
+    public function test_manager_can_comment_edit_and_delete_on_any_task(): void
+    {
+        $manager = User::factory()->create(['name' => 'Project Manager']);
+        $manager->givePermissionTo(['projects.view', 'tasks.view', 'tasks.edit', 'tasks.assign']);
+
+        $assignee = User::factory()->create(['name' => 'Worker User']);
+        $assignee->givePermissionTo(['projects.view', 'tasks.view', 'tasks.update-status']);
+
+        $project = Project::create([
+            'name' => 'Manager Comment Project',
+            'created_by' => $manager->id,
+        ]);
+
+        $task = $project->tasks()->create([
+            'title' => 'Manager Supervised Task',
+            'assigned_to' => $assignee->id,
+            'status' => 'in_progress',
+            'priority' => 'high',
+        ]);
+
+        // 1. Manager can add comment to a task not assigned to them
+        $this->actingAs($manager)
+            ->post(route('projects.tasks.comments.store', [$project, $task]), [
+                'body' => 'Manager review note: please expedite testing.',
+            ])
+            ->assertRedirect(route('projects.tasks.show', [$project, $task]))
+            ->assertSessionHas('success', 'Daily work update added successfully.');
+
+        $comment = TaskComment::where('task_id', $task->id)->firstOrFail();
+        $this->assertSame($manager->id, $comment->user_id);
+
+        // 2. Manager can edit that comment
+        $this->actingAs($manager)
+            ->put(route('projects.tasks.comments.update', [$project, $task, $comment]), [
+                'body' => 'Manager review note: testing expedited successfully.',
+            ])
+            ->assertRedirect(route('projects.tasks.show', [$project, $task]))
+            ->assertSessionHas('success', 'Daily work update edited successfully.');
+
+        $this->assertDatabaseHas('task_comments', [
+            'id' => $comment->id,
+            'body' => 'Manager review note: testing expedited successfully.',
+        ]);
+
+        // 3. Assignee adds their own comment
+        $this->actingAs($assignee)
+            ->post(route('projects.tasks.comments.store', [$project, $task]), [
+                'body' => 'Assignee status report: all tests passed.',
+            ])
+            ->assertRedirect(route('projects.tasks.show', [$project, $task]));
+
+        $assigneeComment = TaskComment::where('user_id', $assignee->id)->firstOrFail();
+
+        // 4. Manager can delete assignee's comment
+        $this->actingAs($manager)
+            ->delete(route('projects.tasks.comments.destroy', [$project, $task, $assigneeComment]))
+            ->assertRedirect(route('projects.tasks.show', [$project, $task]))
+            ->assertSessionHas('success', 'Daily work update deleted successfully.');
+
+        $this->assertDatabaseMissing('task_comments', ['id' => $assigneeComment->id]);
+    }
+}
