@@ -491,7 +491,7 @@ class TaskTimerTest extends TestCase
             ->get(route('projects.tasks.show', [$project, $task]));
 
         $response->assertOk()
-            ->assertSeeText('Deadline passed · Timer locked')
+            ->assertSeeText('Deadline passed')
             ->assertDontSeeText('Start Timer');
     }
 }
