@@ -80,10 +80,18 @@ class TaskController extends Controller
      */
     public function store(Request $request, Project $project): RedirectResponse
     {
+        $dueDateRules = ['nullable', 'date'];
+        if ($project->start_date) {
+            $dueDateRules[] = 'after_or_equal:' . $project->start_date->toDateString();
+        }
+        if ($project->end_date) {
+            $dueDateRules[] = 'before_or_equal:' . $project->end_date->toDateString();
+        }
+
         $validated = $request->validate([
             'title'         => ['required', 'string', 'max:255'],
             'description'   => ['nullable', 'string'],
-            'due_date'      => ['nullable', 'date'],
+            'due_date'      => $dueDateRules,
             'priority'      => ['required', 'in:low,medium,high'],
             'status'        => ['required', 'in:pending,in_progress,completed'],
             'assigned_to'   => ['nullable', 'integer', 'exists:users,id'],
@@ -160,10 +168,18 @@ class TaskController extends Controller
             return redirect()->route('projects.tasks.show', [$project, $task])->with('success', 'Task status updated successfully.');
         }
 
+        $dueDateRules = ['nullable', 'date'];
+        if ($project->start_date) {
+            $dueDateRules[] = 'after_or_equal:' . $project->start_date->toDateString();
+        }
+        if ($project->end_date) {
+            $dueDateRules[] = 'before_or_equal:' . $project->end_date->toDateString();
+        }
+
         $validated = $request->validate([
             'title'         => ['required', 'string', 'max:255'],
             'description'   => ['nullable', 'string'],
-            'due_date'      => ['nullable', 'date'],
+            'due_date'      => $dueDateRules,
             'priority'      => ['required', 'in:low,medium,high'],
             'status'        => ['required', 'in:pending,in_progress,completed'],
             'assigned_to'   => ['nullable', 'integer', 'exists:users,id'],
