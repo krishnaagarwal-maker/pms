@@ -28,6 +28,7 @@
         @keyframes kanban-drop-pulse { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, .38), inset 0 0 0 1px rgba(59,130,246,.35); } 60% { box-shadow: 0 0 0 12px rgba(59, 130, 246, 0), inset 0 0 0 1px rgba(59,130,246,.45); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0), inset 0 0 0 1px rgba(59,130,246,.45); } }
         @keyframes kanban-drop-glow { 0% { transform: scale(.98); opacity: .6; } 50% { transform: scale(1.02); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes kanban-card-pop { 0% { transform: scale(.96); box-shadow: 0 0 0 0 rgba(34,197,94,.35); } 35% { transform: scale(1.03); box-shadow: 0 0 0 8px rgba(34,197,94,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+            @keyframes kanban-card-ring { 0% { opacity: 0; transform: scale(.85); box-shadow: 0 0 0 0 rgba(34,197,94,.4); } 18% { opacity: 1; } 52% { box-shadow: 0 0 0 10px rgba(34,197,94,0); } 100% { opacity: 0; transform: scale(1.06); box-shadow: 0 0 0 20px rgba(34,197,94,0); } }
         .kanban-enter { animation: kanban-enter .45s cubic-bezier(.22,.8,.25,1) both; }
         .kanban-scroll { scrollbar-width: thin; scrollbar-color: rgb(203 213 225) transparent; }
         .kanban-card { position: relative; transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease, transform .12s ease, opacity .12s ease; }
