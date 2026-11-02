@@ -41,6 +41,7 @@ Route::middleware(['web', 'auth'])
 
         // Keep static task paths above /{project} so they are not captured as project IDs
         Route::get('/tasks', [TaskController::class, 'index'])->middleware('permission:tasks.view')->name('tasks.index');
+        Route::get('/board', [TaskController::class, 'board'])->middleware('permission:tasks.view')->name('tasks.board');
         Route::get('/my-tasks', [TaskController::class, 'myTasks'])
             ->middleware('permission:tasks.view')
             ->name('my-tasks');
@@ -112,6 +113,9 @@ Route::middleware(['web', 'auth'])
         Route::put('/{project}/tasks/{task}', [TaskController::class, 'update'])
             ->middleware('permission:tasks.edit|tasks.update-status')
             ->name('tasks.update');
+        Route::post('/{project}/tasks/{task}/status', [TaskController::class, 'updateStatus'])
+            ->middleware('permission:tasks.edit|tasks.update-status')
+            ->name('tasks.status.update');
         Route::delete('/{project}/tasks/{task}', [TaskController::class, 'destroy'])->middleware('permission:tasks.delete')->name('tasks.destroy');
 
         // Remaining project routes

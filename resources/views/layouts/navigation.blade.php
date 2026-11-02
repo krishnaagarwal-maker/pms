@@ -9,6 +9,7 @@
         ['Dashboard',           'dashboard',            ['dashboard'],                                                          null,            'dashboard'],
         ['Projects',            'projects.index',       ['projects.index', 'projects.show', 'projects.create', 'projects.edit'], 'projects.view', 'folder_open'],
         ['My tasks',            'projects.my-tasks',    ['projects.my-tasks'],                                                  'tasks.view',    'assignment_ind'],
+        ['Board',               'projects.tasks.board', ['projects.tasks.board'],                                               'tasks.view',    'view_kanban'],
         ['All tasks',           'projects.tasks.index', ['projects.tasks.*'],                                                   'tasks.view',    'checklist'],
         ['Roles & permissions', 'projects.roles.index', ['projects.roles.*', 'projects.users.roles.*'],                         'roles.view',    'admin_panel_settings'],
     ])->filter(fn ($l) => $l[3] === null || $navUser->can($l[3]));

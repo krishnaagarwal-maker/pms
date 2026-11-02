@@ -217,6 +217,14 @@
                     <span x-show="dark" x-cloak class="material-symbols-outlined text-[20px]" aria-hidden="true">light_mode</span>
                 </button>
 
+                @can('tasks.view')
+                    <a href="{{ route('projects.tasks.board', ['project' => $project->id]) }}"
+                       class="flex h-9 items-center gap-1.5 rounded-xl px-space-md text-label-md transition-colors {{ $cx['card'] }} {{ $cx['text'] }} {{ $cx['hover'] }} {{ $cx['focus'] }}">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">view_kanban</span>
+                        Board
+                    </a>
+                @endcan
+
                 @can('tasks.create')
                     <a href="{{ route('projects.tasks.create', $project) }}"
                        class="flex h-9 items-center gap-1.5 rounded-xl px-space-md text-label-md transition-colors {{ $cx['card'] }} {{ $cx['text'] }} {{ $cx['hover'] }} {{ $cx['focus'] }}">

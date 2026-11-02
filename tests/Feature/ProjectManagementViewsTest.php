@@ -32,6 +32,53 @@ class ProjectManagementViewsTest extends TestCase
         $this->assertTrue(View::exists('ProjectManagement::projects.create'));
         $this->assertTrue(View::exists('ProjectManagement::tasks.index'));
         $this->assertTrue(View::exists('ProjectManagement::tasks.my-tasks'));
+        $this->assertTrue(View::exists('ProjectManagement::tasks.board'));
+    }
+
+    public function test_assigned_user_can_view_their_kanban_board_and_move_a_task(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['tasks.view', 'tasks.update-status']);
+
+        $project = Project::create(['name' => 'Board project']);
+        $task = $project->tasks()->create([
+            'title' => 'Move this task',
+            'priority' => 'high',
+            'status' => 'pending',
+            'assigned_to' => $user->id,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('projects.tasks.board'))
+            ->assertOk()
+            ->assertSee('Task board')
+            ->assertSee('Move this task');
+
+        $this->actingAs($user)
+            ->post(route('projects.tasks.status.update', [$project, $task]), ['status' => 'in_progress'])
+            ->assertRedirect(route('projects.tasks.board'));
+
+        $this->assertDatabaseHas('tasks', ['id' => $task->id, 'status' => 'in_progress']);
+    }
+
+    public function test_board_status_update_returns_json_for_drag_and_drop_requests(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['tasks.view', 'tasks.update-status']);
+        $project = Project::create(['name' => 'Drag request project']);
+        $task = $project->tasks()->create([
+            'title' => 'Drag request task',
+            'priority' => 'medium',
+            'status' => 'pending',
+            'assigned_to' => $user->id,
+        ]);
+
+        $this->actingAs($user)
+            ->postJson(route('projects.tasks.status.update', [$project, $task]), ['status' => 'completed'])
+            ->assertOk()
+            ->assertJsonPath('status', 'completed');
+
+        $this->assertDatabaseHas('tasks', ['id' => $task->id, 'status' => 'completed']);
     }
 
     public function test_manager_can_delete_another_user_from_role_management_page(): void
