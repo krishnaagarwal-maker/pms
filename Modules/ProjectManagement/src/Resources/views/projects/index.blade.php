@@ -518,8 +518,9 @@
                             <div class="flex items-start justify-between gap-2 mb-3.5 pt-0.5">
                                 <div class="flex items-center flex-wrap gap-1.5">
                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold {{ $info['pill'] }}">
-                                        <span class="h-1.5 w-1.5 rounded-full {{ $info['dot'] }} {{ $info['pulse'] ? 'animate-pulse' : '' }}"></span>
+                                      @can('projects.edit')
                                         {{ $info['label'] }}
+                                        @endcan
                                     </span>
 
                                     @if ($overdueCount > 0)
