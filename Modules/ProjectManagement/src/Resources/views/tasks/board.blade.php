@@ -24,20 +24,65 @@
     <style>
         [x-cloak] { display: none !important; }
         @keyframes kanban-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes kanban-landed { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, .55); } 100% { box-shadow: 0 0 0 9px rgba(37, 99, 235, 0); } }
+        @keyframes kanban-landed { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, .55); } 100% { box-shadow: 0 0 0 11px rgba(37, 99, 235, 0); } }
+        @keyframes kanban-drop-pulse { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, .38), inset 0 0 0 1px rgba(59,130,246,.35); } 60% { box-shadow: 0 0 0 12px rgba(59, 130, 246, 0), inset 0 0 0 1px rgba(59,130,246,.45); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0), inset 0 0 0 1px rgba(59,130,246,.45); } }
+        @keyframes kanban-drop-glow { 0% { transform: scale(.98); opacity: .6; } 50% { transform: scale(1.02); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes kanban-card-pop { 0% { transform: scale(.96); box-shadow: 0 0 0 0 rgba(34,197,94,.35); } 35% { transform: scale(1.03); box-shadow: 0 0 0 8px rgba(34,197,94,0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
         .kanban-enter { animation: kanban-enter .45s cubic-bezier(.22,.8,.25,1) both; }
         .kanban-scroll { scrollbar-width: thin; scrollbar-color: rgb(203 213 225) transparent; }
-        .kanban-card { transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease; }
+        .kanban-card { position: relative; transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease, transform .12s ease, opacity .12s ease; }
         .kanban-card:hover { border-color: rgb(148 163 184); box-shadow: 0 3px 10px rgba(15, 23, 42, .09); }
-        .kanban-card.is-dragging { opacity: .4; transform: rotate(1.5deg); }
+        .kanban-card.is-dragging {
+            opacity: .36;
+            transform: rotate(1.5deg) scale(.98);
+            box-shadow: 0 18px 32px rgba(15, 23, 42, .18);
+            filter: saturate(.7);
+        }
         .kanban-card.is-landed { animation: kanban-landed .9s ease-out; }
+        .kanban-card.is-dropped {
+            animation: kanban-card-pop .68s cubic-bezier(.2, .9, .2, 1);
+            border-color: rgb(134 239 172);
+            background: linear-gradient(180deg, rgba(240,253,244,.96), rgba(255,255,255,1));
+        }
         .kanban-card[data-busy] { opacity: .7; }
         .kanban-card[data-status="completed"] .card-title { color: rgb(100 116 139); text-decoration: line-through; text-decoration-color: rgb(203 213 225); }
         .kanban-card[data-status="completed"] .due-chip { background: transparent !important; color: rgb(100 116 139) !important; }
         .card-menu-btn { opacity: 0; transition: opacity .15s ease; }
         .kanban-card:hover .card-menu-btn, .card-menu-btn:focus-visible, .card-menu-btn[aria-expanded="true"] { opacity: 1; }
+        .kanban-drop-target {
+            position: relative;
+            background: linear-gradient(180deg, rgba(239,246,255,.95) 0%, rgba(248,250,252,.95) 100%);
+            border-color: rgba(59,130,246,.6) !important;
+            box-shadow: inset 0 0 0 1px rgba(59,130,246,.45), 0 0 0 1px rgba(59,130,246,.2), 0 18px 26px rgba(59,130,246,.12);
+            animation: kanban-drop-pulse .9s ease-in-out infinite alternate;
+        }
+        .kanban-drop-target::before {
+            content: "";
+            position: absolute;
+            inset: 10px 12px;
+            border: 2px dashed rgba(59,130,246,.7);
+            border-radius: .9rem;
+            pointer-events: none;
+            background: rgba(191,219,254,.13);
+            animation: kanban-drop-glow .7s ease-in-out infinite alternate;
+        }
+        .kanban-drop-target.is-dropped {
+            animation: kanban-drop-pulse .45s ease-in-out 2 alternate, kanban-landed .7s ease-out;
+            border-color: rgba(16,185,129,.8) !important;
+            box-shadow: inset 0 0 0 1px rgba(16,185,129,.45), 0 0 0 1px rgba(16,185,129,.2), 0 16px 20px rgba(16,185,129,.18);
+            background: linear-gradient(180deg, rgba(240,253,244,.97) 0%, rgba(248,250,252,.97) 100%);
+        }
+        .kanban-drop-target .drop-hint {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .drop-hint {
+            opacity: 0;
+            transform: translateY(-4px);
+            transition: opacity .18s ease, transform .18s ease;
+        }
         @media (hover: none) { .card-menu-btn { opacity: 1; } }
-        @media (prefers-reduced-motion: reduce) { .kanban-enter, .kanban-card.is-landed { animation: none !important; } .kanban-card { transition: none !important; } }
+        @media (prefers-reduced-motion: reduce) { .kanban-enter, .kanban-card.is-landed, .kanban-drop-target, .kanban-drop-target::before { animation: none !important; } .kanban-card { transition: none !important; } }
     </style>
 
     <div class="min-h-[calc(100vh-4rem)] bg-slate-50" x-data="kanbanBoard()" @keydown.window="if ($event.key === '/' && !['INPUT','TEXTAREA','SELECT'].includes($event.target.tagName)) { $event.preventDefault(); $refs.search.focus(); }">
@@ -102,7 +147,7 @@
                     @php $columnTasks = $grouped->get($status, collect()); @endphp
                     <section class="kanban-enter w-[86vw] shrink-0 snap-start rounded-xl border border-t-[3px] border-slate-200 {{ $column['accent'] }} bg-slate-100/80 transition-colors sm:w-[22rem] lg:w-auto lg:min-w-[19rem]"
                              style="animation-delay:{{ 60 + $loop->index * 70 }}ms"
-                             :class="[collapsed.{{ $status }} ? 'lg:!w-16 lg:!min-w-0 lg:!flex-none' : 'lg:flex-1', over === '{{ $status }}' ? '!bg-blue-50 ring-2 ring-blue-500/60' : '']"
+                             :class="[collapsed.{{ $status }} ? 'lg:!w-16 lg:!min-w-0 lg:!flex-none' : 'lg:flex-1', over === '{{ $status }}' ? 'kanban-drop-target !bg-blue-50/80 ring-2 ring-blue-500/40' : '']"
                              aria-labelledby="column-{{ $status }}"
                              @dragover.prevent="dragOver($event, '{{ $status }}')" @dragleave="dragLeave($event, '{{ $status }}')" @drop.prevent="drop($event, '{{ $status }}')">
 
@@ -116,11 +161,12 @@
                         </div>
 
                         <div :class="collapsed.{{ $status }} ? 'lg:hidden' : ''">
-                            <header class="flex items-center gap-2 px-3 pb-2 pt-3">
+                            <header class="relative flex items-center gap-2 px-3 pb-2 pt-3">
                                 <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $column['dot'] }}"></span>
                                 <h2 id="column-{{ $status }}" class="font-semibold text-slate-800">{{ $column['title'] }}</h2>
                                 <span class="rounded-full bg-white px-2 py-0.5 text-xs font-bold tabular-nums text-slate-600 shadow-sm" x-text="counts.{{ $status }}" aria-label="tasks">{{ $columnTasks->count() }}</span>
                                 <span class="hidden truncate text-xs text-slate-500 xl:inline">{{ $column['hint'] }}</span>
+                             
                                 <button type="button" @click="toggleColumn('{{ $status }}')" class="ml-auto hidden h-7 w-7 place-items-center rounded text-slate-400 hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 lg:grid" aria-label="Collapse {{ $column['title'] }} column">
                                     <span class="material-symbols-outlined text-[19px]" aria-hidden="true">keyboard_double_arrow_left</span>
                                 </button>
@@ -302,18 +348,36 @@
                     card.classList.add('is-landed');
                     setTimeout(() => card.classList.remove('is-landed'), 1000);
                 },
+                flashDrop(status, card = null) {
+                    const column = this.body(status);
+                    if (column) {
+                        column.classList.remove('is-dropped');
+                        void column.offsetWidth;
+                        column.classList.add('is-dropped');
+                        setTimeout(() => column.classList.remove('is-dropped'), 700);
+                    }
+                    if (card) {
+                        card.classList.remove('is-dropped');
+                        void card.offsetWidth;
+                        card.classList.add('is-dropped');
+                        setTimeout(() => card.classList.remove('is-dropped'), 750);
+                    }
+                },
 
                 dragStart(event, id) {
                     if (!this.canMove) return;
                     this.dragging = id;
                     event.dataTransfer.effectAllowed = 'move';
                     event.dataTransfer.setData('text/plain', String(id));
+                    event.dataTransfer.setDragImage(event.currentTarget, 18, 18);
                     event.currentTarget.classList.add('is-dragging');
+                    document.body.classList.add('cursor-grabbing');
                 },
                 dragEnd() {
                     document.querySelectorAll('.is-dragging').forEach(el => el.classList.remove('is-dragging'));
                     this.dragging = null;
                     this.over = null;
+                    document.body.classList.remove('cursor-grabbing');
                 },
                 dragOver(event, status) {
                     if (!this.dragging) return;
@@ -326,7 +390,11 @@
                 drop(event, status) {
                     const id = event.dataTransfer.getData('text/plain') || this.dragging;
                     this.over = null;
-                    if (id) this.move(id, status);
+                    if (id) {
+                        const card = document.getElementById('task-' + id);
+                        this.flashDrop(status, card);
+                        this.move(id, status);
+                    }
                 },
 
                 move(id, status) {
