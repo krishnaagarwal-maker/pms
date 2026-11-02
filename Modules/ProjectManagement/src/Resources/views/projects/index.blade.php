@@ -286,7 +286,6 @@
                 <div class="flex flex-col">
                     <div class="flex items-center gap-1.5">
                         <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Active</span>
-                        <span x-show="statusFilter === 'ongoing'" class="text-[10px] font-bold text-indigo-600 bg-indigo-100 px-1.5 py-0.5 rounded-full leading-none">Filtered</span>
                     </div>
                     <div class="flex items-baseline gap-2 mt-1">
                         <span class="text-3xl font-bold tracking-tight text-slate-900">{{ $activeCount }}</span>
@@ -310,7 +309,6 @@
                 <div class="flex flex-col">
                     <div class="flex items-center gap-1.5">
                         <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Due Soon</span>
-                        <span x-show="statusFilter === 'pending'" class="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full leading-none">Filtered</span>
                     </div>
                     <div class="flex items-baseline gap-2 mt-1">
                         <span class="text-3xl font-bold tracking-tight {{ $dueSoonCount > 0 ? 'text-amber-600' : 'text-slate-900' }}">
@@ -336,7 +334,6 @@
                 <div class="flex flex-col">
                     <div class="flex items-center gap-1.5">
                         <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Upcoming</span>
-                        <span x-show="statusFilter === 'upcoming'" class="text-[10px] font-bold text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-full leading-none">Filtered</span>
                     </div>
                     <div class="flex items-baseline gap-2 mt-1">
                         <span class="text-3xl font-bold tracking-tight text-slate-900">
@@ -362,7 +359,6 @@
                 <div class="flex flex-col">
                     <div class="flex items-center gap-1.5">
                         <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ended</span>
-                        <span x-show="statusFilter === 'overdue'" class="text-[10px] font-bold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-full leading-none">Filtered</span>
                     </div>
                     <div class="flex items-baseline gap-2 mt-1">
                         <span class="text-3xl font-bold tracking-tight {{ $endedCount > 0 ? 'text-rose-600' : 'text-slate-900' }}">

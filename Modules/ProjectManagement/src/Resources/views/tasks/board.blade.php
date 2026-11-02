@@ -95,57 +95,7 @@
             @endif
 
             {{-- Toolbar --}}
-            <form method="GET" class="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center">
-                <div class="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-                    <div class="relative w-full sm:max-w-xs">
-                        <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[19px] text-slate-400" aria-hidden="true">search</span>
-                        <label for="board-search" class="sr-only">Search tasks</label>
-                        <input id="board-search" x-ref="search" type="search" name="q" value="{{ request('q') }}" placeholder="Search this board" autocomplete="off"
-                               @input="filters.q = $event.target.value; applyFilters()"
-                               class="h-10 w-full rounded-lg border-slate-300 bg-white pl-10 pr-9 text-sm placeholder:text-slate-400 focus:border-blue-600 focus:ring-blue-600">
-                        <kbd class="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-slate-200 bg-slate-50 px-1.5 text-[11px] font-medium text-slate-400 sm:block" aria-hidden="true">/</kbd>
-                    </div>
-
-                    <label for="board-project" class="sr-only">Project</label>
-                    <select id="board-project" name="project" onchange="this.form.submit()" class="h-10 w-full rounded-lg border-slate-300 bg-white text-sm text-slate-700 focus:border-blue-600 focus:ring-blue-600 sm:w-48">
-                        <option value="">All projects</option>
-                        @foreach ($projects as $project)
-                            <option value="{{ $project->id }}" @selected((string) request('project') === (string) $project->id)>{{ $project->name }}</option>
-                        @endforeach
-                    </select>
-
-                    @if ($assignees->isNotEmpty())
-                        <div class="flex items-center gap-1" role="group" aria-label="Filter by assignee">
-                            @foreach ($assignees->take(7) as $a)
-                                <button type="button" @click="toggleAssignee({{ $a->id }})" :aria-pressed="filters.assignee === {{ $a->id }}" title="{{ $a->id === auth()->id() ? 'You' : $a->name }}"
-                                        :class="filters.assignee === {{ $a->id }} ? 'ring-2 ring-slate-900 ring-offset-2' : 'hover:ring-2 hover:ring-slate-300 hover:ring-offset-1'"
-                                        class="grid h-8 w-8 place-items-center rounded-full text-[11px] font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 {{ $avatarTones[$a->id % count($avatarTones)] }}">
-                                    {{ $initials($a->name) }}<span class="sr-only">{{ $a->name }}</span>
-                                </button>
-                            @endforeach
-                            @if ($assignees->count() > 7)
-                                <span class="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">+{{ $assignees->count() - 7 }}</span>
-                            @endif
-                        </div>
-                    @endif
-                </div>
-
-                <div class="flex flex-wrap items-center gap-2">
-                    <button type="button" @click="filters.overdue = !filters.overdue; applyFilters()" :aria-pressed="filters.overdue"
-                            :class="filters.overdue ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
-                            class="inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
-                        <span class="material-symbols-outlined text-[17px]" aria-hidden="true">event_busy</span> Overdue
-                    </button>
-                    <button type="button" @click="filters.high = !filters.high; applyFilters()" :aria-pressed="filters.high"
-                            :class="filters.high ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'"
-                            class="inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
-                        <span class="material-symbols-outlined text-[17px]" aria-hidden="true">keyboard_double_arrow_up</span> High priority
-                    </button>
-                    <button type="submit" class="h-9 rounded-lg px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">Search</button>
-                    <button type="button" x-show="hasFilters() || {{ $serverFiltered ? 'true' : 'false' }}" x-cloak @click="clearAll()" class="h-9 rounded-lg px-2 text-sm font-medium text-slate-500 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">Clear filters</button>
-                </div>
-            </form>
-
+           
             {{-- Board --}}
             <div class="kanban-scroll -mx-4 mt-5 flex snap-x snap-mandatory items-start gap-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:snap-none lg:overflow-visible lg:px-0">
                 @foreach ($columns as $status => $column)
