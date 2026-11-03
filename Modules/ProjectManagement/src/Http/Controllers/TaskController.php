@@ -67,6 +67,32 @@ class TaskController extends Controller
     }
 
     /**
+     * Display tasks as a workflow board.
+     */
+    public function board(Request $request): View
+    {
+        $filters = $request->validate([
+            'project' => ['nullable', 'integer', 'exists:projects,id'],
+            'q'       => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $query = Task::visibleTo($request->user())->with(['project', 'assignee'])->latest('updated_at');
+
+        if (! empty($filters['project'])) {
+            $query->where('project_id', $filters['project']);
+        }
+
+        if (! empty($filters['q'])) {
+            $query->where('title', 'like', '%' . $filters['q'] . '%');
+        }
+
+        $tasks = $query->get();
+        $projects = Project::visibleTo($request->user())->orderBy('name')->get(['id', 'name']);
+
+        return view('ProjectManagement::tasks.board', compact('tasks', 'projects'));
+    }
+
+    /**
      * Show task creation form.
      */
     public function create(Project $project): View
@@ -205,6 +231,31 @@ class TaskController extends Controller
         }
 
         return redirect()->route('projects.tasks.show', [$project, $task])->with('success', 'Task updated successfully.');
+    }
+
+    /**
+     * Move a task through the board without requiring the full edit form.
+     */
+    public function updateStatus(Request $request, Project $project, Task $task): RedirectResponse|\Illuminate\Http\JsonResponse
+    {
+        $task = $project->tasks()->visibleTo($request->user())->findOrFail($task->id);
+        $user = $request->user();
+
+        abort_unless(
+            $user->can('tasks.edit') || ($user->can('tasks.update-status') && (int) $task->assigned_to === (int) $user->id),
+            403,
+            'You can only update the status of tasks assigned to you.'
+        );
+
+        $validated = $request->validate(['status' => ['required', 'in:pending,in_progress,completed']]);
+        $task->update(['status' => $validated['status']]);
+        $this->notifyTaskRecipients($task, 'Task status updated: ' . $task->title, route('projects.tasks.show', [$project, $task]), 'task_status_updated');
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Task moved successfully.', 'status' => $task->status]);
+        }
+
+        return redirect()->route('projects.tasks.board')->with('success', 'Task moved successfully.');
     }
 
     /**

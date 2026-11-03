@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\View;
 use Modules\ProjectManagement\Database\Seeders\RolePermissionSeeder;
 use Modules\ProjectManagement\Models\Project;
 use Modules\ProjectManagement\Models\TaskComment;
+use Modules\ProjectManagement\Support\ProjectManagementPermissionSync;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -32,6 +33,53 @@ class ProjectManagementViewsTest extends TestCase
         $this->assertTrue(View::exists('ProjectManagement::projects.create'));
         $this->assertTrue(View::exists('ProjectManagement::tasks.index'));
         $this->assertTrue(View::exists('ProjectManagement::tasks.my-tasks'));
+        $this->assertTrue(View::exists('ProjectManagement::tasks.board'));
+    }
+
+    public function test_assigned_user_can_view_their_kanban_board_and_move_a_task(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['tasks.view', 'tasks.update-status']);
+
+        $project = Project::create(['name' => 'Board project']);
+        $task = $project->tasks()->create([
+            'title' => 'Move this task',
+            'priority' => 'high',
+            'status' => 'pending',
+            'assigned_to' => $user->id,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('projects.tasks.board'))
+            ->assertOk()
+            ->assertSee('Task board')
+            ->assertSee('Move this task');
+
+        $this->actingAs($user)
+            ->post(route('projects.tasks.status.update', [$project, $task]), ['status' => 'in_progress'])
+            ->assertRedirect(route('projects.tasks.board'));
+
+        $this->assertDatabaseHas('tasks', ['id' => $task->id, 'status' => 'in_progress']);
+    }
+
+    public function test_board_status_update_returns_json_for_drag_and_drop_requests(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['tasks.view', 'tasks.update-status']);
+        $project = Project::create(['name' => 'Drag request project']);
+        $task = $project->tasks()->create([
+            'title' => 'Drag request task',
+            'priority' => 'medium',
+            'status' => 'pending',
+            'assigned_to' => $user->id,
+        ]);
+
+        $this->actingAs($user)
+            ->postJson(route('projects.tasks.status.update', [$project, $task]), ['status' => 'completed'])
+            ->assertOk()
+            ->assertJsonPath('status', 'completed');
+
+        $this->assertDatabaseHas('tasks', ['id' => $task->id, 'status' => 'completed']);
     }
 
     public function test_manager_can_delete_another_user_from_role_management_page(): void
@@ -515,5 +563,23 @@ class ProjectManagementViewsTest extends TestCase
             ->assertSessionHas('success', 'Daily work update deleted successfully.');
 
         $this->assertDatabaseMissing('task_comments', ['id' => $assigneeComment->id]);
+    }
+
+    public function test_permission_sync_reinstates_manager_access_to_projects_and_tasks(): void
+    {
+        $managerRole = Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
+        $managerRole->syncPermissions([]);
+
+        $this->assertFalse($managerRole->hasPermissionTo('projects.view'));
+        $this->assertFalse($managerRole->hasPermissionTo('tasks.view'));
+
+        ProjectManagementPermissionSync::ensure();
+
+        $freshManager = Role::where('name', 'manager')->where('guard_name', 'web')->firstOrFail();
+
+        $this->assertTrue($freshManager->hasPermissionTo('projects.view'));
+        $this->assertTrue($freshManager->hasPermissionTo('projects.create'));
+        $this->assertTrue($freshManager->hasPermissionTo('tasks.view'));
+        $this->assertTrue($freshManager->hasPermissionTo('roles.assign-permissions'));
     }
 }

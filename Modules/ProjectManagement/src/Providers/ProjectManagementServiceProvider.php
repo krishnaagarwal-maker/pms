@@ -2,9 +2,12 @@
 
 namespace Modules\ProjectManagement\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\ServiceProvider;
+use Modules\ProjectManagement\Support\ProjectManagementPermissionSync;
 
 class ProjectManagementServiceProvider extends ServiceProvider
 {
@@ -40,6 +43,24 @@ class ProjectManagementServiceProvider extends ServiceProvider
         $this->registerMiddleware();
         $this->registerComponents();
         $this->loadViewsFrom(base_path('Modules/ProjectManagement/resources/views'), 'ProjectManagement');
+
+        if (Schema::hasTable('roles') && Schema::hasTable('permissions')) {
+            $shouldSkipLegacyUuidRepair = false;
+
+            if (DB::getDriverName() === 'mysql') {
+                $rolesType = DB::selectOne("SHOW COLUMNS FROM roles WHERE Field = 'id'");
+                $usersType = DB::selectOne("SHOW COLUMNS FROM users WHERE Field = 'id'");
+
+                $rolesColumnType = strtolower((string) ($rolesType->Type ?? ''));
+                $usersColumnType = strtolower((string) ($usersType->Type ?? ''));
+
+                $shouldSkipLegacyUuidRepair = str_contains($rolesColumnType, 'char') || str_contains($usersColumnType, 'char');
+            }
+
+            if (! $shouldSkipLegacyUuidRepair) {
+                ProjectManagementPermissionSync::ensure();
+            }
+        }
     }
 
     /**
