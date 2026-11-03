@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\View;
 use Modules\ProjectManagement\Database\Seeders\RolePermissionSeeder;
 use Modules\ProjectManagement\Models\Project;
 use Modules\ProjectManagement\Models\TaskComment;
+use Modules\ProjectManagement\Support\ProjectManagementPermissionSync;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -562,5 +563,23 @@ class ProjectManagementViewsTest extends TestCase
             ->assertSessionHas('success', 'Daily work update deleted successfully.');
 
         $this->assertDatabaseMissing('task_comments', ['id' => $assigneeComment->id]);
+    }
+
+    public function test_permission_sync_reinstates_manager_access_to_projects_and_tasks(): void
+    {
+        $managerRole = Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
+        $managerRole->syncPermissions([]);
+
+        $this->assertFalse($managerRole->hasPermissionTo('projects.view'));
+        $this->assertFalse($managerRole->hasPermissionTo('tasks.view'));
+
+        ProjectManagementPermissionSync::ensure();
+
+        $freshManager = Role::where('name', 'manager')->where('guard_name', 'web')->firstOrFail();
+
+        $this->assertTrue($freshManager->hasPermissionTo('projects.view'));
+        $this->assertTrue($freshManager->hasPermissionTo('projects.create'));
+        $this->assertTrue($freshManager->hasPermissionTo('tasks.view'));
+        $this->assertTrue($freshManager->hasPermissionTo('roles.assign-permissions'));
     }
 }
