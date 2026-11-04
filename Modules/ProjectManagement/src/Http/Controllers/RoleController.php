@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -68,12 +69,9 @@ class RoleController extends Controller
         return view('ProjectManagement::roles.index', compact('roles', 'permissionGroups', 'assignablePermissions'));
     }
 
-    public function create(): View
+    public function create(): RedirectResponse
     {
-        $permissionGroups = $this->permissionGroups();
-        $assignablePermissions = $this->assignablePermissions(request()->user());
-
-        return view('ProjectManagement::roles.create', compact('permissionGroups', 'assignablePermissions'));
+        return redirect()->route('projects.roles.index');
     }
 
     public function store(Request $request): RedirectResponse
@@ -82,6 +80,14 @@ class RoleController extends Controller
 
         if ($request->exists('permissions')) {
             abort_unless($request->user()->can('roles.assign-permissions'), 403, 'You are not allowed to assign permissions.');
+        }
+
+        $name = trim((string) $request->input('name', ''));
+        $builtInKey = strtolower(str_replace([' ', '-'], '_', $name));
+        if (in_array($builtInKey, ['manager', 'team_member'], true)) {
+            throw ValidationException::withMessages([
+                'name' => ['The role name conflicts with a reserved built-in system role (Manager, Team member).'],
+            ]);
         }
 
         $validated = $request->validate([
@@ -125,6 +131,14 @@ class RoleController extends Controller
     {
         if ($request->exists('permissions')) {
             abort_unless($request->user()->can('roles.assign-permissions'), 403, 'You are not allowed to assign permissions.');
+        }
+
+        $name = trim((string) $request->input('name', ''));
+        $builtInKey = strtolower(str_replace([' ', '-'], '_', $name));
+        if (! $this->isBuiltIn($role) && in_array($builtInKey, ['manager', 'team_member'], true)) {
+            throw ValidationException::withMessages([
+                'name' => ['The role name conflicts with a reserved built-in system role (Manager, Team member).'],
+            ]);
         }
 
         $validated = $request->validate([

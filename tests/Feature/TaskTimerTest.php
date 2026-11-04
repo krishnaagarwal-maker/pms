@@ -297,7 +297,6 @@ class TaskTimerTest extends TestCase
         $response->assertOk()
             ->assertSeeText('Time Tracker & Timesheet')
             ->assertSeeText('Total Time Spent')
-            ->assertSeeText('Timesheet Sessions')
             ->assertSeeText('Start Timer')
             ->assertSeeText('History')
             ->assertSeeText('Filter By Date');
@@ -372,7 +371,7 @@ class TaskTimerTest extends TestCase
             ->assertSeeText('Calendar')
             ->assertSeeText('Today')
             ->assertSeeText('Productive')
-            ->assertSeeText('Idle')
+            ->assertDontSeeText('Idle')
             ->assertDontSeeText('Time by Team Member')
             ->assertDontSeeText('Open Date-wise History');
     }

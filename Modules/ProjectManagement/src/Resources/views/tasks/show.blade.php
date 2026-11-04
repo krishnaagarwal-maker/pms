@@ -928,8 +928,8 @@
                                 @endif
                             </div>
 
-                            {{-- 3 Stat Boxes (Today / Productive / Idle) --}}
-                            <div class="mt-space-md grid grid-cols-3 gap-2">
+                            {{-- Time summary --}}
+                            <div class="mt-space-md grid grid-cols-2 gap-2">
                                 <div class="rounded-xl border border-surface-container-high bg-surface-container-low/70 p-2.5 text-center">
                                     <div class="flex items-center justify-center gap-1 text-on-surface-variant">
                                         <span class="material-symbols-outlined text-[15px]">schedule</span>
@@ -944,14 +944,6 @@
                                         <span class="sr-only">Total Time Spent</span>
                                     </div>
                                     <p class="mt-1 text-label-md sm:text-title-sm font-bold tabular-nums text-on-surface" x-text="productiveFormattedHMS">00:00:00</p>
-                                </div>
-                                <div class="rounded-xl border border-surface-container-high bg-surface-container-low/70 p-2.5 text-center">
-                                    <div class="flex items-center justify-center gap-1 text-on-surface-variant">
-                                        <span class="material-symbols-outlined text-[15px]">sentiment_satisfied</span>
-                                        <span class="text-[11px] font-medium uppercase tracking-wider" title="Time after 60 seconds without activity while the timer is running">Idle</span>
-                                        <span class="sr-only">Timesheet Sessions · time without activity while the timer is running</span>
-                                    </div>
-                                    <p class="mt-1 text-label-md sm:text-title-sm font-bold tabular-nums text-on-surface" x-text="idleDisplay">00:00:00</p>
                                 </div>
                             </div>
 
@@ -1349,37 +1341,22 @@
                 entries: [],
                 offset: 0,              // server time minus device time (ms)
                 now: Date.now(),
-                idleThresholdSeconds: 60,
-                idleBaseSeconds: 0,
-                lastActivityAt: null,
-                trackedSessionStartedAt: null,
                 loading: false,
                 error: null,
                 success: null,
                 _tick: null,
-                _activityHandler: null,
 
                 init() {
                     this.apply(cfg.state);
                     this._tick = setInterval(() => { this.now = Date.now() + this.offset; }, 250);
-                    this._activityHandler = () => this.recordActivity();
-                    ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll'].forEach((eventName) => {
-                        window.addEventListener(eventName, this._activityHandler, { passive: true });
-                    });
                 },
                 destroy() {
                     clearInterval(this._tick);
-                    if (this._activityHandler) {
-                        ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll'].forEach((eventName) => {
-                            window.removeEventListener(eventName, this._activityHandler);
-                        });
-                    }
                 },
 
                 apply(state) {
                     if (!state) return;
                     var nextStartedAt = state.started_at ? Date.parse(state.started_at) : null;
-                    var isNewSession = nextStartedAt !== this.trackedSessionStartedAt;
                     this.running = !!state.running;
                     this.startedAt = nextStartedAt;
                     this.startedBy = state.started_by || null;
@@ -1389,14 +1366,6 @@
                     this.entries = state.entries || [];
                     this.offset = state.server_now ? state.server_now - Date.now() : 0;
                     this.now = Date.now() + this.offset;
-                    if (isNewSession) {
-                        this.trackedSessionStartedAt = nextStartedAt;
-                        this.idleBaseSeconds = 0;
-                        this.lastActivityAt = this.now;
-                    }
-                    if (!this.running) {
-                        this.lastActivityAt = null;
-                    }
                 },
 
                 get elapsed() {
@@ -1445,33 +1414,13 @@
                         sum += Number(this.entries[i].duration_seconds || 0);
                     }
                     if (this.running) {
-                        sum += Math.max(0, this.elapsed - this.idleSeconds);
+                        sum += this.elapsed;
                     }
                     return sum;
                 },
 
                 get productiveFormattedHMS() {
                     return this.fmtHMS(this.productiveSeconds);
-                },
-
-                get idleSeconds() {
-                    if (!this.running || !this.lastActivityAt) return 0;
-                    var inactiveSeconds = Math.max(0, Math.floor((this.now - this.lastActivityAt) / 1000));
-                    return this.idleBaseSeconds + Math.max(0, inactiveSeconds - this.idleThresholdSeconds);
-                },
-
-                get idleDisplay() {
-                    return this.fmtHMS(this.idleSeconds);
-                },
-
-                recordActivity() {
-                    if (!this.running) return;
-                    var activityAt = Date.now() + this.offset;
-                    if (this.lastActivityAt) {
-                        var inactiveSeconds = Math.max(0, Math.floor((activityAt - this.lastActivityAt) / 1000));
-                        this.idleBaseSeconds += Math.max(0, inactiveSeconds - this.idleThresholdSeconds);
-                    }
-                    this.lastActivityAt = activityAt;
                 },
 
                 // Calendar navigation & grid helpers

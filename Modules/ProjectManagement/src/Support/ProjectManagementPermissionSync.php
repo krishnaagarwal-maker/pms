@@ -46,7 +46,7 @@ class ProjectManagementPermissionSync
 
         $canonicalRoles = [
             'manager' => ['manager', 'Manager'],
-            'team_member' => ['team_member', 'team-member', 'Team Member', 'Team member', 'Team Lead', 'team_lead'],
+            'team_member' => ['team_member', 'team-member', 'Team Member', 'Team member'],
         ];
 
         foreach ($canonicalRoles as $canonicalName => $aliases) {

@@ -53,6 +53,8 @@ class UserRoleController extends Controller
             return back()->withErrors(['user_id' => 'You cannot change your own role from this screen.']);
         }
 
+        $selectedUser->role = in_array(strtolower($role->name), ['manager', 'team_member'], true) ? strtolower($role->name) : 'team_member';
+        $selectedUser->save();
         $selectedUser->syncRoles([$role->name]);
 
         return redirect()->route('projects.users.roles.index')->with('success', "User role updated to {$role->name}.");

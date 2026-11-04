@@ -582,4 +582,65 @@ class ProjectManagementViewsTest extends TestCase
         $this->assertTrue($freshManager->hasPermissionTo('tasks.view'));
         $this->assertTrue($freshManager->hasPermissionTo('roles.assign-permissions'));
     }
+
+    public function test_manager_can_create_new_role_and_it_is_visible_in_roles_directory(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+
+        $manager = User::factory()->create(['role' => 'manager']);
+        $manager->assignRole('manager');
+
+        $response = $this->actingAs($manager)
+            ->post(route('projects.roles.store'), [
+                'name' => 'Team Lead',
+                'permissions' => ['projects.view', 'tasks.view'],
+            ]);
+
+        $response->assertRedirect(route('projects.roles.index'))
+            ->assertSessionHas('success', 'Role created successfully.');
+
+        $this->assertDatabaseHas('roles', [
+            'name' => 'Team Lead',
+            'guard_name' => 'web',
+        ]);
+
+        $indexResponse = $this->actingAs($manager)->get(route('projects.roles.index'));
+        $indexResponse->assertOk()
+            ->assertSeeText('Team Lead');
+    }
+
+    public function test_role_creation_rejects_reserved_builtin_roles(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+
+        $manager = User::factory()->create(['role' => 'manager']);
+        $manager->assignRole('manager');
+
+        $response = $this->actingAs($manager)
+            ->from(route('projects.roles.index'))
+            ->post(route('projects.roles.store'), [
+                'name' => 'Team Member',
+            ]);
+
+        $response->assertRedirect(route('projects.roles.index'))
+            ->assertSessionHasErrors('name');
+    }
+
+    public function test_manager_can_delete_custom_role(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+
+        $manager = User::factory()->create(['role' => 'manager']);
+        $manager->assignRole('manager');
+
+        $role = Role::create(['name' => 'DevOps', 'guard_name' => 'web']);
+
+        $response = $this->actingAs($manager)
+            ->delete(route('projects.roles.destroy', $role));
+
+        $response->assertRedirect(route('projects.roles.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('roles', ['id' => $role->id]);
+    }
 }
