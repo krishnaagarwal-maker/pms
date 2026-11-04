@@ -85,7 +85,17 @@
             border-color: rgb(110 231 183);
             background: linear-gradient(180deg, rgba(240,253,244,.96), rgba(255,255,255,1));
         }
-        .kanban-card[data-busy] { opacity: .7; }
+        .kanban-card[data-busy] { opacity: .78; cursor: progress; }
+        .kanban-card.is-saving::after {
+            content: ""; position: absolute; inset: 0; border-radius: inherit;
+            background: linear-gradient(110deg, transparent 25%, rgba(255,255,255,.62) 48%, transparent 72%);
+            background-size: 220% 100%; animation: kanban-saving 1s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes kanban-saving { to { background-position: -220% 0; } }
+        .kanban-column.is-receiving { background-color: rgba(219,234,254,.55); }
+        .kanban-column [data-empty] { transition: opacity .18s ease, transform .18s ease; }
+        .kanban-card.is-optimistic { outline: 2px solid rgba(59,130,246,.22); }
         .kanban-card[data-status="completed"] .card-title {
             color: rgb(100 116 139);
             text-decoration: line-through;
@@ -212,7 +222,7 @@
                         </a>
                         @can('projects.view')
                             <a href="{{ route('projects.index') }}" class="inline-flex h-10 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
-                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span> New task
+                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">folder_open</span> Projects
                             </a>
                         @endcan
                     </div>
@@ -231,7 +241,7 @@
                     <div class="flex flex-1 items-center gap-3">
                         <label for="board-search" class="relative block w-full max-w-xl flex-1">
                             <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-slate-400" aria-hidden="true">search</span>
-                            <input id="board-search" x-ref="search" x-model.debounce.200ms="filters.q" @input="applyFilters()" type="search" placeholder="Search tasks, projects, keys..." class="board-search h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-700 shadow-inner shadow-slate-200/60 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100" />
+                            <input id="board-search" x-ref="search" x-model="filters.q" @input="applyFilters()" type="search" placeholder="Search tasks, projects, keys..." class="board-search h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-700 shadow-inner shadow-slate-200/60 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100" />
                         </label>
                     </div>
 
@@ -401,11 +411,11 @@
             const STORE = 'projectms.board.collapsed';
             return {
                 canMove: @js($canMove),
-                labels: @js(collect($columns)->map(fn ($c) => $c['title'])),
+                statuses: @js(array_keys($columns)),
                 counts: @js($totals),
                 totals: @js($totals),
                 overdue: 0,
-                filters: { q: '', overdue: false, high: false, assignee: null },
+                filters: { q: @js((string) request('q', '')), overdue: false, high: false, assignee: null },
                 collapsed: { pending: false, in_progress: false, completed: false },
                 dragging: null,
                 dragGhost: null,
@@ -466,7 +476,7 @@
 
                 refresh() {
                     let overdue = 0;
-                    Object.keys(this.labels).forEach(status => {
+                    this.statuses.forEach(status => {
                         const body = this.body(status);
                         if (!body) return;
                         const cards = Array.from(body.querySelectorAll('[data-task-id]'));
@@ -474,8 +484,15 @@
                         this.counts[status] = visible;
                         this.totals[status] = cards.length;
                         const empty = body.querySelector('[data-empty]');
-                        empty.classList.toggle('hidden', visible > 0);
-                        empty.querySelector('[data-empty-text]').textContent = cards.length > 0 ? 'No tasks match these filters' : (this.canMove ? 'Drop a task here' : 'No tasks yet');
+                        if (empty) {
+                            empty.classList.toggle('hidden', visible > 0);
+                            const emptyText = empty.querySelector('[data-empty-text]');
+                            if (emptyText) {
+                                emptyText.textContent = cards.length > 0
+                                    ? 'No tasks match these filters'
+                                    : (this.canMove ? 'Drop a task here' : 'No tasks yet');
+                            }
+                        }
                     });
                     document.querySelectorAll('[data-task-id]').forEach(c => { if (c.dataset.status !== 'completed' && c.dataset.overdue === '1') overdue++; });
                     this.overdue = overdue;
@@ -553,13 +570,15 @@
                     if (!event.currentTarget.contains(event.relatedTarget) && this.over === status) this.over = null;
                 },
                 drop(event, status) {
-                    const id = event.dataTransfer.getData('text/plain') || this.dragging;
+                    const id = event.dataTransfer?.getData('text/plain') || this.dragging;
                     this.over = null;
-                    if (id) {
-                        const card = document.getElementById('task-' + id);
-                        this.flashDrop(status, card);
-                        this.move(id, status);
-                    }
+
+                    if (!id || !this.statuses.includes(status)) return;
+
+                    const card = document.getElementById('task-' + id);
+                    if (!card) return;
+
+                    this.move(id, status);
                 },
                 moveFocus(current, delta) {
                     const cards = Array.from(document.querySelectorAll('[data-task-id]')).filter(card => !card.classList.contains('hidden'));
@@ -570,19 +589,86 @@
                     }
                 },
 
-                move(id, status) {
+                async move(id, status) {
                     const card = document.getElementById('task-' + id);
-                    if (!this.canMove || !card || card.dataset.status === status || card.dataset.busy) return;
+                    if (!this.canMove || !card || !this.statuses.includes(status) ||
+                        card.dataset.status === status || card.dataset.busy === '1') return;
 
                     const form = card.querySelector('form[data-status-form]');
-                    const input = form.querySelector('input[name="status"]');
+                    const input = form?.querySelector('input[name="status"]');
+                    const sourceStatus = card.dataset.status;
+                    const sourceBody = this.body(sourceStatus);
+                    const targetBody = this.body(status);
+                    if (!form || !input || !sourceBody || !targetBody) {
+                        this.notify('Unable to move this task. Please refresh and try again.', 'error');
+                        return;
+                    }
 
-                    // Use a normal Laravel form submission for board moves. This is
-                    // deliberately not an optimistic fetch: the page only re-renders
-                    // after the authenticated server-side status update succeeds.
+                    const sourceNext = card.nextElementSibling;
+                    const previousInput = input.value;
+                    const before = card.getBoundingClientRect();
+                    const targetColumn = targetBody.closest('.kanban-column');
+
+                    // Optimistic UI: move immediately; persist in the background.
                     card.dataset.busy = '1';
+                    card.classList.add('is-saving', 'is-optimistic');
                     input.value = status;
-                    form.submit();
+                    targetBody.insertBefore(card, targetBody.querySelector('[data-empty]'));
+                    card.dataset.status = status;
+                    this.applyFilters();
+
+                    const after = card.getBoundingClientRect();
+                    const dx = before.left - after.left;
+                    const dy = before.top - after.top;
+                    if (typeof card.animate === 'function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                        card.animate([
+                            { transform: `translate(${dx}px, ${dy}px) scale(.985)`, opacity: .82 },
+                            { transform: 'translate(0, 0) scale(1)', opacity: 1 }
+                        ], { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' });
+                    }
+                    targetColumn?.classList.add('is-receiving');
+                    window.setTimeout(() => targetColumn?.classList.remove('is-receiving'), 420);
+
+                    try {
+                        const response = await fetch(form.action, {
+                            method: (form.method || 'POST').toUpperCase(),
+                            body: new FormData(form),
+                            credentials: 'same-origin',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json'
+                            }
+                        });
+
+                        // Laravel may redirect after a successful web request. Fetch follows
+                        // that redirect; explicitly reject login redirects and HTTP failures.
+                        const redirectedToLogin = response.redirected && /\/login(?:[/?#]|$)/i.test(response.url);
+                        if (!response.ok || redirectedToLogin) {
+                            let message = 'The server could not update this task. Your board has been restored.';
+                            if (response.status === 403) message = 'You are not allowed to move this task.';
+                            else if (response.status === 419) message = 'Your session expired. Refresh the page and try again.';
+                            else if (response.status === 422) message = 'The selected status is invalid.';
+                            else if (redirectedToLogin) message = 'Your session expired. Please sign in again.';
+                            throw new Error(message);
+                        }
+
+                        card.classList.remove('is-saving', 'is-optimistic');
+                        delete card.dataset.busy;
+                        this.refresh();
+                        this.flashDrop(status, card);
+                        this.notify('Task moved to ' + (status === 'pending' ? 'To do' : status === 'in_progress' ? 'In progress' : 'Done') + '.');
+                    } catch (error) {
+                        // Roll back both the DOM position and the status value on failure.
+                        const rollbackTarget = sourceNext && sourceNext.parentElement === sourceBody
+                            ? sourceNext : sourceBody.querySelector('[data-empty]');
+                        sourceBody.insertBefore(card, rollbackTarget || null);
+                        card.dataset.status = sourceStatus;
+                        input.value = previousInput;
+                        card.classList.remove('is-saving', 'is-optimistic');
+                        delete card.dataset.busy;
+                        this.applyFilters();
+                        this.notify(error.message || 'Network error. The task was not moved.', 'error');
+                    }
                 },
             };
         }
