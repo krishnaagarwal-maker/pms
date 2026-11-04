@@ -38,6 +38,19 @@ class Task extends Model
         'due_date'   => 'date',
     ];
 
+    protected static function booted(): void
+    {
+        static::deleting(function (Task $task) {
+            if ($task->isForceDeleting()) {
+                $task->attachments()->delete();
+                $task->comments()->delete();
+                if (method_exists($task, 'timers')) {
+                    $task->timers()->delete();
+                }
+            }
+        });
+    }
+
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);

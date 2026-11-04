@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\View;
 use Modules\ProjectManagement\Database\Seeders\RolePermissionSeeder;
 use Modules\ProjectManagement\Models\Project;
+use Modules\ProjectManagement\Models\Task;
 use Modules\ProjectManagement\Models\TaskComment;
 use Modules\ProjectManagement\Support\ProjectManagementPermissionSync;
 use Spatie\Permission\Models\Permission;
@@ -80,6 +81,82 @@ class ProjectManagementViewsTest extends TestCase
             ->assertJsonPath('status', 'completed');
 
         $this->assertDatabaseHas('tasks', ['id' => $task->id, 'status' => 'completed']);
+    }
+
+    public function test_board_loads_successfully_when_task_has_no_project_or_project_deleted(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo(['tasks.view', 'tasks.update-status']);
+
+        $project = Project::create(['name' => 'Valid Project']);
+        $validTask = $project->tasks()->create([
+            'title' => 'Valid Task',
+            'priority' => 'high',
+            'status' => 'pending',
+            'assigned_to' => $user->id,
+        ]);
+
+        $deletedProject = Project::create(['name' => 'To Be Deleted']);
+        $orphanTask = Task::withoutEvents(function () use ($deletedProject, $user) {
+            return Task::create([
+                'title' => 'Orphan Task',
+                'priority' => 'low',
+                'status' => 'pending',
+                'assigned_to' => $user->id,
+                'project_id' => $deletedProject->id,
+            ]);
+        });
+        $deletedProject->newQuery()->where('id', $deletedProject->id)->update(['deleted_at' => now()]);
+
+        $this->actingAs($user)
+            ->get(route('projects.tasks.board'))
+            ->assertOk()
+            ->assertSee('Valid Task')
+            ->assertDontSee('Orphan Task');
+
+        // Test view directly with orphan task to verify view null-safety
+        $view = View::make('ProjectManagement::tasks.board', [
+            'tasks' => collect([$validTask, $orphanTask]),
+            'projects' => collect([$project]),
+        ])->render();
+
+        $this->assertStringContainsString('Valid Task', $view);
+    }
+
+    public function test_deleting_project_cascades_and_deletes_its_tasks_from_database(): void
+    {
+        $project = Project::create(['name' => 'Project to Delete']);
+        $task = $project->tasks()->create([
+            'title' => 'Child Task',
+            'priority' => 'medium',
+            'status' => 'pending',
+        ]);
+
+        $this->assertDatabaseHas('tasks', ['id' => $task->id]);
+
+        $project->delete();
+
+        $this->assertDatabaseMissing('tasks', ['id' => $task->id]);
+    }
+
+    public function test_purge_orphans_artisan_command_deletes_orphan_tasks(): void
+    {
+        $project = Project::create(['name' => 'Project Temp']);
+        $orphanTask = Task::withoutEvents(function () use ($project) {
+            return Task::create([
+                'title' => 'Orphan Task to Purge',
+                'priority' => 'low',
+                'status' => 'pending',
+                'project_id' => $project->id,
+            ]);
+        });
+        $project->newQuery()->where('id', $project->id)->update(['deleted_at' => now()]);
+
+        $this->artisan('tasks:purge-orphans')
+            ->expectsOutputToContain('Purged 1 orphan tasks from the database.')
+            ->assertSuccessful();
+
+        $this->assertDatabaseMissing('tasks', ['id' => $orphanTask->id]);
     }
 
     public function test_manager_can_delete_another_user_from_role_management_page(): void

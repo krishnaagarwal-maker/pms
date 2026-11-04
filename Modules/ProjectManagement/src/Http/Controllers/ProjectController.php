@@ -132,6 +132,12 @@ class ProjectController extends Controller
         $projectName = $project->name;
         $project->delete();
 
+        Task::withTrashed()->whereDoesntHave('project')->get()->each(function (Task $orphan) {
+            $orphan->attachments()->delete();
+            $orphan->comments()->delete();
+            $orphan->forceDelete();
+        });
+
         $this->notifyProjectManagers('Project deleted: ' . $projectName, route('projects.index'), 'project_deleted');
 
         return redirect()->route('projects.index')->with('success', 'Project "' . $projectName . '" deleted successfully.');

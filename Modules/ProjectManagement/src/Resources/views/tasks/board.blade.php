@@ -4,6 +4,7 @@
         'in_progress' => ['title' => 'In progress', 'hint' => 'Being worked on', 'dot' => 'bg-blue-600', 'accent' => 'border-t-blue-600', 'bar' => 'bg-blue-600'],
         'completed' => ['title' => 'Done', 'hint' => 'Wrapped up', 'dot' => 'bg-teal-600', 'accent' => 'border-t-teal-600', 'bar' => 'bg-teal-600'],
     ];
+    $tasks = $tasks->filter(fn ($task) => !is_null($task->project));
     $grouped = $tasks->groupBy(fn ($task) => array_key_exists($task->status, $columns) ? $task->status : 'pending');
     $totals = collect($columns)->map(fn ($c, $s) => $grouped->get($s, collect())->count())->all();
     $canMove = auth()->user()->can('tasks.edit') || auth()->user()->can('tasks.update-status');
@@ -312,7 +313,7 @@
                                         $dueLabel = $daysLeft === null ? null : ($daysLeft === 0 ? 'Today' : ($daysLeft === 1 ? 'Tomorrow' : $task->due_date->format('M j')));
                                         $dueTone = $isOverdue ? 'bg-rose-50 text-rose-700' : ($dueSoon ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600');
                                         $priority = $priorities[$task->priority] ?? null;
-                                        $projectName = $task->project->name;
+                                        $projectName = $task->project?->name ?? 'No Project';
                                         $key = (Str::upper(Str::substr(preg_replace('/[^A-Za-z]/', '', $projectName), 0, 3)) ?: 'TSK') . '-' . $task->id;
                                         $searchText = Str::lower($task->title . ' ' . $projectName . ' ' . $task->description . ' ' . $key);
                                     @endphp
@@ -329,7 +330,11 @@
                                              @keydown.escape.prevent="open = false"
                                              class="kanban-card relative rounded-lg border border-slate-200 bg-white p-3 shadow-[0_1px_1px_rgba(15,23,42,.12)] {{ $canMove ? 'cursor-grab active:cursor-grabbing' : 'cursor-default' }}">
                                         <div class="flex items-start gap-2">
-                                            <a href="{{ route('projects.tasks.show', [$task->project, $task]) }}" draggable="false" class="card-title min-w-0 flex-1 rounded text-sm font-medium leading-5 text-slate-800 hover:text-blue-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">{{ $task->title }}</a>
+                                            @if ($task->project)
+                                                <a href="{{ route('projects.tasks.show', [$task->project, $task]) }}" draggable="false" class="card-title min-w-0 flex-1 rounded text-sm font-medium leading-5 text-slate-800 hover:text-blue-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">{{ $task->title }}</a>
+                                            @else
+                                                <span class="card-title min-w-0 flex-1 rounded text-sm font-medium leading-5 text-slate-800">{{ $task->title }}</span>
+                                            @endif
                                             @if ($canMove)
                                                 <div class="-mr-1 -mt-1 shrink-0" @keydown.escape.stop="open = false" @click.outside="open = false">
                                                     <button type="button" class="card-menu-btn grid h-7 w-7 place-items-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
@@ -345,10 +350,12 @@
                                                                 <span x-show="open && isIn($el, '{{ $key2 }}')" class="material-symbols-outlined ml-auto text-[17px]" aria-hidden="true">check</span>
                                                             </button>
                                                         @endforeach
-                                                        <div class="my-1 border-t border-slate-100"></div>
-                                                        <a href="{{ route('projects.tasks.show', [$task->project, $task]) }}" role="menuitem" draggable="false" class="flex items-center gap-2 px-3 py-1.5 text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none">
-                                                            <span class="material-symbols-outlined text-[17px]" aria-hidden="true">open_in_new</span>Open task
-                                                        </a>
+                                                        @if ($task->project)
+                                                            <div class="my-1 border-t border-slate-100"></div>
+                                                            <a href="{{ route('projects.tasks.show', [$task->project, $task]) }}" role="menuitem" draggable="false" class="flex items-center gap-2 px-3 py-1.5 text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none">
+                                                                <span class="material-symbols-outlined text-[17px]" aria-hidden="true">open_in_new</span>Open task
+                                                            </a>
+                                                        @endif
                                                     </div>
                                                 </div>
                                             @endif
@@ -359,7 +366,7 @@
                                         @endif
 
                                         <p class="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
-                                            <span class="h-2 w-2 shrink-0 rounded-full {{ $projectDots[$task->project->id % count($projectDots)] }}"></span>
+                                            <span class="h-2 w-2 shrink-0 rounded-full {{ $task->project ? $projectDots[$task->project->id % count($projectDots)] : 'bg-slate-400' }}"></span>
                                             <span class="truncate">{{ $projectName }}</span>
                                         </p>
 
@@ -381,7 +388,9 @@
                                             @endif
                                         </div>
 
-                                        <form data-status-form method="POST" action="{{ route('projects.tasks.status.update', [$task->project, $task]) }}" class="hidden">@csrf<input type="hidden" name="status" value="{{ $status }}"></form>
+                                        @if ($task->project)
+                                            <form data-status-form method="POST" action="{{ route('projects.tasks.status.update', [$task->project, $task]) }}" class="hidden">@csrf<input type="hidden" name="status" value="{{ $status }}"></form>
+                                        @endif
                                     </article>
                                 @endforeach
 

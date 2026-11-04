@@ -29,7 +29,7 @@ class TaskController extends Controller
             'page'     => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $query = Task::visibleTo($request->user())->with('project');
+        $query = Task::visibleTo($request->user())->whereHas('project')->with('project');
 
         if (! empty($filters['q'])) {
             $query->where('title', 'like', '%' . $filters['q'] . '%');
@@ -53,7 +53,7 @@ class TaskController extends Controller
         };
 
         $tasks = $query->paginate(15)->withQueryString();
-        $countQuery = Task::visibleTo($request->user());
+        $countQuery = Task::visibleTo($request->user())->whereHas('project');
 
         $statusCounts = [
             'all'         => (clone $countQuery)->count(),
@@ -76,7 +76,13 @@ class TaskController extends Controller
             'q'       => ['nullable', 'string', 'max:255'],
         ]);
 
-        $query = Task::visibleTo($request->user())->with(['project', 'assignee'])->latest('updated_at');
+        Task::withTrashed()->whereDoesntHave('project')->get()->each(function (Task $orphan) {
+            $orphan->attachments()->delete();
+            $orphan->comments()->delete();
+            $orphan->forceDelete();
+        });
+
+        $query = Task::visibleTo($request->user())->whereHas('project')->with(['project', 'assignee'])->latest('updated_at');
 
         if (! empty($filters['project'])) {
             $query->where('project_id', $filters['project']);
@@ -147,7 +153,7 @@ class TaskController extends Controller
      */
     public function myTasks(): View
     {
-        $tasks = Task::query()->where('assigned_to', auth()->id())->with('project')->latest()->paginate(10);
+        $tasks = Task::query()->where('assigned_to', auth()->id())->whereHas('project')->with('project')->latest()->paginate(10);
         return view('ProjectManagement::tasks.my-tasks', compact('tasks'));
     }
 

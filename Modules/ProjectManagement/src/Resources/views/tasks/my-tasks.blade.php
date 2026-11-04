@@ -192,7 +192,7 @@
                                 <div class="min-w-0 lg:col-span-2">
                                     <span class="flex items-center gap-2 text-sm text-slate-700">
                                         <span class="h-2 w-2 shrink-0 rounded-full bg-indigo-500"></span>
-                                        <span class="truncate">{{ $task->project->name ?? 'Unknown project' }}</span>
+                                        <span class="truncate">{{ $task->project?->name ?? 'Unknown project' }}</span>
                                     </span>
                                 </div>
 

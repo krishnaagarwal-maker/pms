@@ -278,7 +278,7 @@
                                             <a href="{{ route('projects.show', $task->project) }}"
                                                class="flex items-center gap-2 rounded text-sm text-slate-700 hover:text-indigo-600 {{ $focus }}">
                                                 <span class="h-2 w-2 shrink-0 rounded-full bg-indigo-500" aria-hidden="true"></span>
-                                                <span class="max-w-[12rem] truncate">{{ $task->project->name }}</span>
+                                                <span class="max-w-[12rem] truncate">{{ $task->project?->name ?? 'Unknown' }}</span>
                                             </a>
                                         </td>
 
@@ -341,7 +341,7 @@
                                    class="block rounded text-sm font-semibold text-slate-900 hover:text-indigo-600 {{ $focus }}">{{ $task->title }}</a>
                                 <p class="mt-0.5 text-xs text-slate-500">
                                     <span class="font-code-sm">{{ $m['ticket'] }}</span> in
-                                    <a href="{{ route('projects.show', $task->project) }}" class="font-medium text-slate-700 hover:text-indigo-600">{{ $task->project->name }}</a>
+                                    <a href="{{ $task->project ? route('projects.show', $task->project) : '#' }}" class="font-medium text-slate-700 hover:text-indigo-600">{{ $task->project?->name ?? 'Unknown' }}</a>
                                 </p>
 
                                 <div class="mt-2.5 flex flex-wrap items-center gap-2">

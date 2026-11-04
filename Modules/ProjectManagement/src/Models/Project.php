@@ -26,6 +26,21 @@ class Project extends Model
         'end_date'   => 'date',
     ];
 
+    protected static function booted(): void
+    {
+        static::deleting(function (Project $project) {
+            $project->attachments()->delete();
+            $project->tasks()->withTrashed()->get()->each(function (Task $task) {
+                $task->attachments()->delete();
+                $task->comments()->delete();
+                if (method_exists($task, 'timers')) {
+                    $task->timers()->delete();
+                }
+                $task->forceDelete();
+            });
+        });
+    }
+
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
